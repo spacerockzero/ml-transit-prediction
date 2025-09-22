@@ -30,8 +30,7 @@ export const action: ActionFunction = async ({ request }) => {
   
   const data = {
     ship_date: formData.get("ship_date") as string,
-    origin_zone: parseInt(formData.get("origin_zone") as string),
-    dest_zone: parseInt(formData.get("dest_zone") as string),
+    zone: parseInt(formData.get("zone") as string),
     carrier: formData.get("carrier") as string,
     service_level: formData.get("service_level") as string,
     package_weight_lbs: parseFloat(formData.get("weight_lbs") as string),
@@ -75,15 +74,14 @@ export default function TransitPrediction() {
 
   const [formData, setFormData] = useState({
     ship_date: new Date().toISOString().split('T')[0], // Today's date
-    origin_zone: "1",
-    dest_zone: "5",
+    zone: "1",
     carrier: "USPS",
     service_level: "Ground",
     weight_lbs: "2.5",
     length_in: "12",
     width_in: "8",
     height_in: "6",
-    insurance_value: "100",
+    insurance_value: "0",
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -124,31 +122,17 @@ export default function TransitPrediction() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="origin_zone">Origin Zone (1-9)</Label>
-                    <Select
-                      name="origin_zone"
-                      value={formData.origin_zone}
-                      onChange={(e) => handleInputChange("origin_zone", e.target.value)}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(zone => (
-                        <option key={zone} value={zone}>Zone {zone}</option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="dest_zone">Destination Zone (1-9)</Label>
-                    <Select
-                      name="dest_zone"
-                      value={formData.dest_zone}
-                      onChange={(e) => handleInputChange("dest_zone", e.target.value)}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(zone => (
-                        <option key={zone} value={zone}>Zone {zone}</option>
-                      ))}
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="zone">USPS Zone (1-9)</Label>
+                  <Select
+                    name="zone"
+                    value={formData.zone}
+                    onChange={(e) => handleInputChange("zone", e.target.value)}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(zone => (
+                      <option key={zone} value={zone}>Zone {zone}</option>
+                    ))}
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

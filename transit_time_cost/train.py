@@ -21,7 +21,8 @@ def target_encode_smooth(train, valid, col, target, min_samples_leaf=100, smooth
     agg['smoothing'] = 1 / (1 + np.exp(-(agg['n'] - min_samples_leaf) / smoothing))
     agg['enc'] = prior * (1 - agg['smoothing']) + agg['mean'] * agg['smoothing']
     mapping = agg['enc'].to_dict()
-    return valid[col].map(mapping).fillna(prior)
+    encoded_values = valid[col].map(mapping).fillna(prior)
+    return encoded_values, mapping, prior
 
 # ---- Load data ----
 # Expected columns: ship_date (datetime), origin_zone, dest_zone, carrier, service_level,
@@ -81,18 +82,30 @@ train_df = df.iloc[:split_idx].copy()
 valid_df = df.iloc[split_idx:].copy()
 
 # ---- Encoding high-cardinality categoricals: target-smoothing on train, map to valid ----
+target_encodings_time = {}
+target_encodings_cost = {}
+priors = {}
+
 for col in ['route', 'origin_zone', 'dest_zone', 'carrier', 'service_level', 'origin_service', 'carrier_service']:
     # For transit time
-    valid_df[f'{col}_te_time'] = target_encode_smooth(train_df, valid_df, col, 'transit_time_days',
-                                                      min_samples_leaf=200, smoothing=20)
-    train_df[f'{col}_te_time'] = target_encode_smooth(train_df, train_df, col, 'transit_time_days',
-                                                      min_samples_leaf=200, smoothing=20)
+    valid_df[f'{col}_te_time'], mapping_time, prior_time = target_encode_smooth(
+        train_df, valid_df, col, 'transit_time_days', min_samples_leaf=200, smoothing=20)
+    train_df[f'{col}_te_time'], _, _ = target_encode_smooth(
+        train_df, train_df, col, 'transit_time_days', min_samples_leaf=200, smoothing=20)
     
     # For shipping cost
-    valid_df[f'{col}_te_cost'] = target_encode_smooth(train_df, valid_df, col, 'shipping_cost_usd',
-                                                      min_samples_leaf=200, smoothing=20)
-    train_df[f'{col}_te_cost'] = target_encode_smooth(train_df, train_df, col, 'shipping_cost_usd',
-                                                      min_samples_leaf=200, smoothing=20)
+    valid_df[f'{col}_te_cost'], mapping_cost, prior_cost = target_encode_smooth(
+        train_df, valid_df, col, 'shipping_cost_usd', min_samples_leaf=200, smoothing=20)
+    train_df[f'{col}_te_cost'], _, _ = target_encode_smooth(
+        train_df, train_df, col, 'shipping_cost_usd', min_samples_leaf=200, smoothing=20)
+    
+    # Store mappings for inference
+    target_encodings_time[col] = mapping_time
+    target_encodings_cost[col] = mapping_cost
+
+# Store priors (global means for unseen categories)
+priors['transit_time_days'] = train_df['transit_time_days'].mean()
+priors['shipping_cost_usd'] = train_df['shipping_cost_usd'].mean()
 
 # ---- Feature lists ----
 # Features for transit time prediction
@@ -229,8 +242,43 @@ for q, m in quantile_models_cost.items():
 dump(time_feature_cols, "time_feature_cols.joblib")
 dump(cost_feature_cols, "cost_feature_cols.joblib")
 
+# Save target encoding mappings for inference
+dump(target_encodings_time, "target_encodings_time.joblib")
+dump(target_encodings_cost, "target_encodings_cost.joblib")
+dump(priors, "target_encoding_priors.joblib")
+
+# Copy all model files to the inference server directory
+import shutil
+import os
+
+inference_dir = "../fastify-inference-server/onnx_models"
+if not os.path.exists(inference_dir):
+    os.makedirs(inference_dir)
+
+# Files to copy to inference server
+model_files = [
+    "lgb_transit_time_model.txt",
+    "lgb_shipping_cost_model.txt", 
+    "time_feature_cols.joblib",
+    "cost_feature_cols.joblib",
+    "target_encodings_time.joblib",
+    "target_encodings_cost.joblib",
+    "target_encoding_priors.joblib"
+]
+
+print(f"\nCopying model files to inference server...")
+for file in model_files:
+    if os.path.exists(file):
+        shutil.copy2(file, inference_dir)
+        print(f"- Copied {file} to {inference_dir}")
+    else:
+        print(f"- WARNING: {file} not found, skipping")
+
 print(f"\nModels saved:")
 print(f"- Transit Time: lgb_transit_time_model.txt")
 print(f"- Shipping Cost: lgb_shipping_cost_model.txt")
 print(f"- Feature columns: time_feature_cols.joblib, cost_feature_cols.joblib")
+print(f"- Target encodings: target_encodings_time.joblib, target_encodings_cost.joblib")
+print(f"- Target encoding priors: target_encoding_priors.joblib")
 print(f"- Quantile models saved for both targets")
+print(f"- All files copied to inference server: {inference_dir}")

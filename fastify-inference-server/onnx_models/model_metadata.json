@@ -1,0 +1,50 @@
+{
+  "transit_time_model": {
+    "model_name": "LightGBM Transit Time Predictor",
+    "version": "1.0.0",
+    "features": 17,
+    "description": "Predicts shipping transit time in days based on package and route information"
+  },
+  "shipping_cost_model": {
+    "model_name": "LightGBM Shipping Cost Predictor",
+    "version": "1.0.0",
+    "features": 17,
+    "description": "Predicts shipping cost in USD based on package and service information"
+  },
+  "feature_engineering": {
+    "date_features": [
+      "dow_sin",
+      "dow_cos",
+      "month_sin",
+      "month_cos"
+    ],
+    "package_features": [
+      "package_volume",
+      "dimensional_weight",
+      "billable_weight",
+      "weight_to_volume_ratio"
+    ],
+    "route_features": [
+      "route",
+      "origin_service",
+      "carrier_service"
+    ],
+    "target_encoding": [
+      "route_te_time",
+      "zone_te_time",
+      "carrier_te_time",
+      "service_level_te_time"
+    ]
+  },
+  "input_schema": {
+    "ship_date": "YYYY-MM-DD format",
+    "zone": "Integer 1-9 (USPS zone)",
+    "carrier": "String (USPS, FedEx, UPS, DHL, etc.)",
+    "service_level": "String (Ground, Express, Priority, Overnight)",
+    "package_weight_lbs": "Float 0.1-70",
+    "package_length_in": "Float 1-100",
+    "package_width_in": "Float 1-100",
+    "package_height_in": "Float 1-100",
+    "insurance_value": "Float 0-10000"
+  }
+}

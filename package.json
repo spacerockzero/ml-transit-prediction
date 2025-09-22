@@ -1,0 +1,31 @@
+{
+  "name": "ml-transit-time-prediction",
+  "version": "1.0.0",
+  "description": "ML Transit Time & Cost Prediction System",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:frontend\"",
+    "dev:server": "cd fastify-inference-server && npm run dev",
+    "dev:frontend": "cd remix-frontend && npm run dev",
+    "start": "concurrently \"npm run start:server\" \"npm run start:frontend\"",
+    "start:server": "cd fastify-inference-server && npm start",
+    "start:frontend": "cd remix-frontend && npm start",
+    "install:all": "npm install && cd fastify-inference-server && npm install && cd ../remix-frontend && npm install",
+    "build": "cd fastify-inference-server && npm run build 2>/dev/null || echo 'Server build not available' && cd ../remix-frontend && npm run build",
+    "test": "cd fastify-inference-server && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "keywords": [
+    "machine-learning",
+    "shipping",
+    "transit-time",
+    "cost-prediction",
+    "fastify",
+    "remix",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT"
+}

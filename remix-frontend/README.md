@@ -22,7 +22,7 @@ A modern React Router (Remix) application for predicting shipping transit time a
 ## Prerequisites
 
 - Node.js 18+
-- Running Fastify ONNX inference server (see `../fastify-onnx-server/`)
+- Running Fastify ONNX inference server (see `../fastify-inference-server/`)
 
 ## Installation
 
@@ -135,7 +135,7 @@ The application can be tested by:
 
 1. Starting the inference server:
    ```bash
-   cd ../fastify-onnx-server
+   cd ../fastify-inference-server
    node server.js
    ```
 
@@ -158,7 +158,7 @@ npm run start
 
 ## Related Projects
 
-- **Inference Server**: `../fastify-onnx-server/` - ONNX model serving
+- **Inference Server**: `../fastify-inference-server/` - ONNX model serving
 - **ML Training**: `../transit_time_cost/` - Model training and data generation
 - **Data Processing**: Python scripts for feature engineering and model conversion
 

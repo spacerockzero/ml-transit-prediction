@@ -9,6 +9,18 @@ wheels/
 # Virtual environments
 .venv
 
+# Generated model files and training outputs
+transit_time/output/
+transit_time_cost/output/
+transit_time_zones/output/
+statistical_analysis/output/
+
+# Model files (uncomment if you want to exclude trained models)
+*.txt
+*.joblib
+*.pkl
+*.parquet
+
 # nodejs files
 node_modules/
 npm-debug.log*

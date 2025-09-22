@@ -24,16 +24,15 @@ carriers = [
 ]
 
 service_levels = [
-    'STANDARD', 'EXPRESS', 'OVERNIGHT', 'ECONOMY', 'PRIORITY'
+    'Ground', 'Express', 'Priority', 'Overnight'
 ]
 
 # Define base transit times (in days) for different service levels and distance categories
 base_transit_times = {
-    'OVERNIGHT': {'domestic': 1, 'regional': 2, 'international': 3},
-    'EXPRESS': {'domestic': 2, 'regional': 3, 'international': 5},
-    'PRIORITY': {'domestic': 3, 'regional': 4, 'international': 7},
-    'STANDARD': {'domestic': 5, 'regional': 7, 'international': 12},
-    'ECONOMY': {'domestic': 7, 'regional': 10, 'international': 18}
+    'Overnight': {'domestic': 1, 'regional': 2, 'international': 3},
+    'Express': {'domestic': 2, 'regional': 3, 'international': 5},
+    'Priority': {'domestic': 3, 'regional': 4, 'international': 7},
+    'Ground': {'domestic': 5, 'regional': 7, 'international': 12}
 }
 
 def get_distance_category(origin, dest):
@@ -67,9 +66,9 @@ def calculate_realistic_transit_time(origin, dest, service_level, ship_date):
     
     # Carrier efficiency (some carriers are consistently faster/slower)
     carrier_effect = {
-        'FedEx': -0.5, 'UPS': -0.3, 'DHL': 0, 'TNT': 0.2,
-        'USPS': 0.5, 'Amazon_Logistics': -0.2, 'OnTrac': 0.3,
-        'LaserShip': 0.4, 'Regional_Express': 0.6, 'Global_Freight': 1.0
+        'FedEx': -0.5, 'UPS': -0.3, 'DHL': 0, 'USPS': 0.2,
+        'Amazon_Logistics': -0.2, 'OnTrac': 0.3, 'LaserShip': 0.4, 
+        'Regional_Express': 0.6, 'Global_Freight': 1.0
     }
     
     # Random variability
@@ -113,7 +112,7 @@ for date in date_range:
         # Select service level with realistic distribution
         service_level = np.random.choice(
             service_levels, 
-            p=[0.4, 0.25, 0.1, 0.15, 0.1]  # STANDARD is most common
+            p=[0.45, 0.25, 0.20, 0.10]  # Ground most common, Overnight least
         )
         
         # Calculate transit time and select carrier

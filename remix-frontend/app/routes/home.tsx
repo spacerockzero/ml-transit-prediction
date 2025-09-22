@@ -17,12 +17,20 @@ export default function Home() {
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
           Get accurate shipping transit time and cost predictions using machine learning models trained on historical shipping data.
         </p>
-        <Link 
-          to="/predict" 
-          className="inline-flex items-center justify-center rounded-md bg-blue-600 px-8 py-3 text-lg font-medium text-white shadow hover:bg-blue-700 transition-colors"
-        >
-          Start Prediction
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link 
+            to="/predict" 
+            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-8 py-3 text-lg font-medium text-white shadow hover:bg-blue-700 transition-colors"
+          >
+            Start Prediction
+          </Link>
+          <Link 
+            to="/analytics" 
+            className="inline-flex items-center justify-center rounded-md bg-green-600 px-8 py-3 text-lg font-medium text-white shadow hover:bg-green-700 transition-colors"
+          >
+            View Analytics
+          </Link>
+        </div>
       </div>
     </div>
   );

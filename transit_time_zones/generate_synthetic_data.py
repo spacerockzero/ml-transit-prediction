@@ -17,16 +17,15 @@ carriers = [
 ]
 
 service_levels = [
-    'STANDARD', 'EXPRESS', 'OVERNIGHT', 'ECONOMY', 'PRIORITY'
+    'Ground', 'Express', 'Priority', 'Overnight'
 ]
 
 # Define base transit times (in days) for different service levels and USPS zones
 base_transit_times = {
-    'OVERNIGHT': {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 3, 8: 3, 9: 3},
-    'EXPRESS': {1: 1, 2: 2, 3: 2, 4: 3, 5: 3, 6: 4, 7: 4, 8: 5, 9: 5},
-    'PRIORITY': {1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6},
-    'STANDARD': {1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10},
-    'ECONOMY': {1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 12}
+    'Overnight': {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2},
+    'Express': {1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3},
+    'Priority': {1: 2, 2: 3, 3: 3, 4: 3, 5: 3, 6: 4, 7: 4, 8: 4, 9: 4},
+    'Ground': {1: 3, 2: 4, 3: 4, 4: 5, 5: 5, 6: 6, 7: 6, 8: 7, 9: 8}
 }
 
 def get_zone_distance(origin, dest):
@@ -119,7 +118,7 @@ for date in date_range:
         # Select service level with realistic distribution
         service_level = np.random.choice(
             service_levels, 
-            p=[0.4, 0.25, 0.1, 0.15, 0.1]  # STANDARD is most common
+            p=[0.45, 0.25, 0.20, 0.10]  # Ground most common, Overnight least
         )
         
         # Calculate transit time and select carrier
