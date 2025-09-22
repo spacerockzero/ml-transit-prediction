@@ -1,0 +1,11 @@
+{
+  "ship_date": "2024-01-15",
+  "origin_zone": "Zone_1",
+  "dest_zone": "Zone_5",
+  "carrier": "FedEx",
+  "service_level": "EXPRESS",
+  "package_weight_lbs": 2.5,
+  "package_length_in": 10.0,
+  "package_width_in": 8.0,
+  "package_height_in": 6.0
+}

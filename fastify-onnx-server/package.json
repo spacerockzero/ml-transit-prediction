@@ -1,0 +1,31 @@
+{
+  "name": "fastify-onnx-server",
+  "version": "1.0.0",
+  "description": "Fastify server for ONNX model inference - Transit Time and Shipping Cost Prediction",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "fastify",
+    "onnx",
+    "machine-learning",
+    "shipping",
+    "transit-time",
+    "cost-prediction"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^5.1.0",
+    "@fastify/cors": "^10.0.1",
+    "onnxruntime-node": "^1.20.1",
+    "python-shell": "^5.0.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.0.0"
+  }
+}
