@@ -29,14 +29,15 @@ export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
   
   const data = {
+    ship_date: formData.get("ship_date") as string,
     origin_zone: parseInt(formData.get("origin_zone") as string),
     dest_zone: parseInt(formData.get("dest_zone") as string),
     carrier: formData.get("carrier") as string,
     service_level: formData.get("service_level") as string,
-    weight_lbs: parseFloat(formData.get("weight_lbs") as string),
-    length_in: parseFloat(formData.get("length_in") as string),
-    width_in: parseFloat(formData.get("width_in") as string),
-    height_in: parseFloat(formData.get("height_in") as string),
+    package_weight_lbs: parseFloat(formData.get("weight_lbs") as string),
+    package_length_in: parseFloat(formData.get("length_in") as string),
+    package_width_in: parseFloat(formData.get("width_in") as string),
+    package_height_in: parseFloat(formData.get("height_in") as string),
     insurance_value: parseFloat(formData.get("insurance_value") as string),
   };
 
@@ -73,6 +74,7 @@ export default function TransitPrediction() {
   const isSubmitting = navigation.state === "submitting";
 
   const [formData, setFormData] = useState({
+    ship_date: new Date().toISOString().split('T')[0], // Today's date
     origin_zone: "1",
     dest_zone: "5",
     carrier: "USPS",
@@ -111,6 +113,17 @@ export default function TransitPrediction() {
             </CardHeader>
             <CardContent>
               <Form method="post" className="space-y-4">
+                <div>
+                  <Label htmlFor="ship_date">Shipping Date</Label>
+                  <Input
+                    type="date"
+                    name="ship_date"
+                    value={formData.ship_date}
+                    onChange={(e) => handleInputChange("ship_date", e.target.value)}
+                    required
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="origin_zone">Origin Zone (1-9)</Label>

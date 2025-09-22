@@ -31,7 +31,10 @@ def engineer_features(input_data, historical_data=None):
     """Apply the same feature engineering as in the training pipeline."""
     df = pd.DataFrame([input_data])
     
-    # Ensure ship_date is datetime
+    # Ensure ship_date is datetime - use today if not provided
+    if 'ship_date' not in df.columns or pd.isna(df['ship_date'].iloc[0]):
+        df['ship_date'] = datetime.now().strftime('%Y-%m-%d')
+    
     df['ship_date'] = pd.to_datetime(df['ship_date'])
     
     # 1. Date features
@@ -45,6 +48,10 @@ def engineer_features(input_data, historical_data=None):
     df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
     
     # 3. Route and combination features
+    # Ensure zones are strings for concatenation
+    df['origin_zone'] = df['origin_zone'].astype(str)
+    df['dest_zone'] = df['dest_zone'].astype(str)
+    
     df['route'] = df['origin_zone'] + '->' + df['dest_zone']
     df['origin_service'] = df['origin_zone'] + '::' + df['service_level']
     df['carrier_service'] = df['carrier'] + '::' + df['service_level']

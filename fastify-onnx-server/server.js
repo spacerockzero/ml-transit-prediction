@@ -73,17 +73,20 @@ const predictionInputSchema = {
     'package_weight_lbs',
     'package_length_in',
     'package_width_in',
-    'package_height_in'
+    'package_height_in',
+    'insurance_value'
   ],
   properties: {
     ship_date: { type: 'string', format: 'date' },
     origin_zone: { 
-      type: 'string',
-      enum: ['Zone_1', 'Zone_2', 'Zone_3', 'Zone_4', 'Zone_5', 'Zone_6', 'Zone_7', 'Zone_8', 'Zone_9']
+      type: 'integer',
+      minimum: 1,
+      maximum: 9
     },
     dest_zone: { 
-      type: 'string',
-      enum: ['Zone_1', 'Zone_2', 'Zone_3', 'Zone_4', 'Zone_5', 'Zone_6', 'Zone_7', 'Zone_8', 'Zone_9']
+      type: 'integer',
+      minimum: 1,
+      maximum: 9
     },
     carrier: {
       type: 'string',
@@ -91,12 +94,13 @@ const predictionInputSchema = {
     },
     service_level: {
       type: 'string', 
-      enum: ['STANDARD', 'EXPRESS', 'OVERNIGHT', 'ECONOMY', 'PRIORITY']
+      enum: ['Ground', 'Express', 'Priority', 'Overnight']
     },
     package_weight_lbs: { type: 'number', minimum: 0.1, maximum: 70 },
     package_length_in: { type: 'number', minimum: 1, maximum: 100 },
     package_width_in: { type: 'number', minimum: 1, maximum: 100 },
-    package_height_in: { type: 'number', minimum: 1, maximum: 100 }
+    package_height_in: { type: 'number', minimum: 1, maximum: 100 },
+    insurance_value: { type: 'number', minimum: 0, maximum: 10000 }
   }
 };
 
