@@ -65,6 +65,16 @@ def handle_analytics_request(request_type, params=None):
                 "data": result
             }
         
+        elif request_type == "compare_carriers":
+            zones = params.get('zones') if params else None
+            metric = params.get('metric', 'transit_time_days')
+            result = analyzer.compare_carriers_by_zone(zones, metric)
+            
+            return {
+                "success": True,
+                "data": result
+            }
+        
         elif request_type == "percentile_analysis":
             percentile = params.get('percentile', 80)
             method = params.get('method', 'median')

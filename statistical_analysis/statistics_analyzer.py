@@ -153,6 +153,204 @@ class ShippingStatisticsAnalyzer:
         
         return results
     
+    def compare_carriers_by_zone(self, zones: List[int] = None, metric: str = 'transit_time_days') -> Dict:
+        """Compare each carrier's service levels against other carriers within each zone."""
+        if zones is None:
+            zones = self.metadata['usps_zones']
+        
+        results = {}
+        
+        for zone in zones:
+            zone_data = self.df[self.df['dest_zone'] == zone]
+            zone_results = {'zone': zone, 'comparisons': {}}
+            
+            # Get all unique carriers and service levels in this zone
+            carriers = zone_data['carrier'].unique()
+            service_levels = zone_data['service_level'].unique()
+            
+            # Compare each service level across carriers
+            for service in service_levels:
+                service_comparison = {}
+                
+                for carrier in carriers:
+                    carrier_service_data = zone_data[
+                        (zone_data['carrier'] == carrier) & 
+                        (zone_data['service_level'] == service)
+                    ][metric]
+                    
+                    if len(carrier_service_data) > 5:  # Need sufficient data
+                        mean = carrier_service_data.mean()
+                        std = carrier_service_data.std()
+                        median = carrier_service_data.median()
+                        q25 = carrier_service_data.quantile(0.25)
+                        q75 = carrier_service_data.quantile(0.75)
+                        
+                        service_comparison[carrier] = {
+                            'mean': float(mean),
+                            'median': float(median),
+                            'std': float(std),
+                            'q25': float(q25),
+                            'q75': float(q75),
+                            'sample_size': len(carrier_service_data),
+                            'lower_2sigma': float(mean - 2 * std),
+                            'upper_2sigma': float(mean + 2 * std),
+                            'reliability_score': float(1 / (std + 0.1))  # Lower std = higher reliability
+                        }
+                
+                # Find the best carrier for this service level in this zone
+                if service_comparison:
+                    # Only consider carriers with all required statistics
+                    valid_carriers = {k: v for k, v in service_comparison.items() 
+                                    if isinstance(v, dict) and all(key in v for key in ['median', 'upper_2sigma'])}
+                    
+                    if valid_carriers:
+                        if metric == 'transit_time_days':
+                            # For transit time, lower is better
+                            best_carrier_median = min(valid_carriers.keys(), 
+                                             key=lambda x: valid_carriers[x]['median'])
+                            best_carrier_2sigma = min(valid_carriers.keys(), 
+                                             key=lambda x: valid_carriers[x]['upper_2sigma'])
+                            ranking_metric = 'median_transit_time'
+                        else:  # shipping_cost_usd
+                            # For cost, lower is better
+                            best_carrier_median = min(valid_carriers.keys(), 
+                                             key=lambda x: valid_carriers[x]['median'])
+                            best_carrier_2sigma = min(valid_carriers.keys(), 
+                                             key=lambda x: valid_carriers[x]['upper_2sigma'])
+                            ranking_metric = 'median_cost'
+                        
+                        service_comparison['winner_median'] = {
+                            'carrier': best_carrier_median,
+                            'reason': f'lowest_{ranking_metric}',
+                            'value': valid_carriers[best_carrier_median]['median'],
+                            'advantage_over_avg': float(
+                                np.mean([v['median'] for v in valid_carriers.values()]) - 
+                                valid_carriers[best_carrier_median]['median']
+                            )
+                        }
+                        
+                        service_comparison['winner_2sigma'] = {
+                            'carrier': best_carrier_2sigma,
+                            'reason': f'lowest_2sigma_upper_bound',
+                            'value': valid_carriers[best_carrier_2sigma]['upper_2sigma'],
+                            'median': valid_carriers[best_carrier_2sigma]['median'],
+                            'std': valid_carriers[best_carrier_2sigma]['std'],
+                            'advantage_over_avg': float(
+                                np.mean([v['upper_2sigma'] for v in valid_carriers.values()]) - 
+                                valid_carriers[best_carrier_2sigma]['upper_2sigma']
+                            ),
+                            'reliability_advantage': 'Most consistent performance with lowest worst-case scenario'
+                        }
+                        
+                        # Keep the old 'winner' for backward compatibility (using median)
+                        service_comparison['winner'] = service_comparison['winner_median']
+                
+                zone_results['comparisons'][service] = service_comparison
+            
+            # Overall zone winners (best carrier-service combinations)
+            all_combinations_median = []
+            all_combinations_2sigma = []
+            for service, carriers_data in zone_results['comparisons'].items():
+                for carrier, stats in carriers_data.items():
+                    if isinstance(stats, dict) and all(key in stats for key in ['median', 'upper_2sigma', 'reliability_score']):
+                        all_combinations_median.append({
+                            'carrier': carrier,
+                            'service': service,
+                            'median': stats['median'],
+                            'reliability': stats['reliability_score']
+                        })
+                        all_combinations_2sigma.append({
+                            'carrier': carrier,
+                            'service': service,
+                            'upper_2sigma': stats['upper_2sigma'],
+                            'median': stats['median'],
+                            'std': stats['std']
+                        })
+            
+            if all_combinations_median:
+                # Best overall combination by median (lowest median with reliability weighting)
+                best_combo_median = min(all_combinations_median, 
+                                      key=lambda x: x['median'] / x['reliability'])
+                zone_results['overall_winner_median'] = {
+                    'carrier': best_combo_median['carrier'],
+                    'service_level': best_combo_median['service'],
+                    'median_value': best_combo_median['median'],
+                    'reliability_score': best_combo_median['reliability']
+                }
+            
+            if all_combinations_2sigma:
+                # Best overall combination by 2-sigma upper bound (most reliable worst-case)
+                best_combo_2sigma = min(all_combinations_2sigma, 
+                                      key=lambda x: x['upper_2sigma'])
+                zone_results['overall_winner_2sigma'] = {
+                    'carrier': best_combo_2sigma['carrier'],
+                    'service_level': best_combo_2sigma['service'],
+                    'upper_2sigma_value': best_combo_2sigma['upper_2sigma'],
+                    'median_value': best_combo_2sigma['median'],
+                    'std_value': best_combo_2sigma['std'],
+                    'reliability_reason': 'Lowest 2-sigma upper bound (best worst-case performance)'
+                }
+            
+            # Keep the old 'overall_winner' for backward compatibility
+            if 'overall_winner_median' in zone_results:
+                zone_results['overall_winner'] = zone_results['overall_winner_median']
+            
+            results[f'zone_{zone}'] = zone_results
+        
+        return {
+            'metric': metric,
+            'zones': results,
+            'summary': self._generate_carrier_comparison_summary(results, metric)
+        }
+    
+    def _generate_carrier_comparison_summary(self, results: Dict, metric: str) -> Dict:
+        """Generate a summary of carrier performance across all zones."""
+        carrier_wins_median = {}
+        carrier_wins_2sigma = {}
+        service_wins_median = {}
+        service_wins_2sigma = {}
+        
+        for zone_key, zone_data in results.items():
+            if zone_key.startswith('zone_'):
+                # Count service-level wins per carrier (median-based)
+                for service, comparison in zone_data['comparisons'].items():
+                    if 'winner_median' in comparison:
+                        winner = comparison['winner_median']['carrier']
+                        carrier_wins_median[winner] = carrier_wins_median.get(winner, 0) + 1
+                        
+                        service_key = f"{winner}_{service}"
+                        service_wins_median[service_key] = service_wins_median.get(service_key, 0) + 1
+                    
+                    # Count service-level wins per carrier (2-sigma-based)
+                    if 'winner_2sigma' in comparison:
+                        winner = comparison['winner_2sigma']['carrier']
+                        carrier_wins_2sigma[winner] = carrier_wins_2sigma.get(winner, 0) + 1
+                        
+                        service_key = f"{winner}_{service}"
+                        service_wins_2sigma[service_key] = service_wins_2sigma.get(service_key, 0) + 1
+                
+                # Count overall zone wins
+                if 'overall_winner_median' in zone_data:
+                    winner = zone_data['overall_winner_median']['carrier']
+                    carrier_wins_median[f"{winner}_overall"] = carrier_wins_median.get(f"{winner}_overall", 0) + 1
+                
+                if 'overall_winner_2sigma' in zone_data:
+                    winner = zone_data['overall_winner_2sigma']['carrier']
+                    carrier_wins_2sigma[f"{winner}_overall"] = carrier_wins_2sigma.get(f"{winner}_overall", 0) + 1
+        
+        return {
+            'carrier_wins_by_median': carrier_wins_median,
+            'carrier_wins_by_2sigma': carrier_wins_2sigma,
+            'best_combinations_median': service_wins_median,
+            'best_combinations_2sigma': service_wins_2sigma,
+            'top_carrier_median': max(carrier_wins_median.items(), key=lambda x: x[1])[0] if carrier_wins_median else None,
+            'top_carrier_2sigma': max(carrier_wins_2sigma.items(), key=lambda x: x[1])[0] if carrier_wins_2sigma else None,
+            'reliability_insights': {
+                'median_winner': 'Best average performance',
+                '2sigma_winner': 'Most reliable with best worst-case performance'
+            }
+        }
+    
     def find_best_service_by_percentile(self, percentile: float, zones: List[int] = None, 
                                       method: str = 'median') -> Dict:
         """Find best service level based on percentile threshold."""

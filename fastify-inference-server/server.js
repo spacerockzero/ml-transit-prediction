@@ -519,6 +519,34 @@ fastify.get('/analytics/compare-2sigma', {
   }
 });
 
+// Compare carriers' service levels within each zone
+fastify.get('/analytics/compare-carriers', {
+  schema: {
+    querystring: {
+      type: 'object',
+      properties: {
+        zones: { 
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 9 }
+        },
+        metric: { 
+          type: 'string', 
+          enum: ['transit_time_days', 'shipping_cost_usd'],
+          default: 'transit_time_days'
+        }
+      }
+    }
+  }
+}, async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('compare_carriers', request.query);
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Percentile-based service analysis
 fastify.get('/analytics/percentile', {
   schema: {
@@ -600,6 +628,7 @@ const start = async () => {
     console.log('  GET  /analytics/summary         - Service level statistics');
     console.log('  GET  /analytics/distributions   - Distribution statistics');
     console.log('  GET  /analytics/compare-2sigma  - 2-sigma service comparison');
+    console.log('  GET  /analytics/compare-carriers - Carrier comparison by zone');
     console.log('  GET  /analytics/percentile      - Percentile-based analysis');
     console.log('  GET  /analytics/histogram       - Histogram data for charts');
     console.log('\\n🎯 Model info:');
