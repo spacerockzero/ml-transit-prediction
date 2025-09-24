@@ -79,11 +79,11 @@ def generate_transit_time(service_level, zone, carrier):
     # Base time + zone effect
     mean_time = specs["base_time"] + (zone - 1) * specs["zone_factor"]
 
-    # Apply carrier adjustment with some random variability
+    # Apply carrier adjustment with more random variability
     # This ensures carriers don't always rank in the same order
-    carrier_variability = np.random.normal(0, 0.1)  # ±10% random variation
+    carrier_variability = np.random.normal(0, 0.2)  # ±20% random variation
     adjusted_mult = carrier_adj["time_mult"] * (1 + carrier_variability)
-    mean_time *= max(0.7, min(1.5, adjusted_mult))  # Clamp between 0.7x and 1.5x
+    mean_time *= max(0.6, min(1.6, adjusted_mult))  # Clamp between 0.6x and 1.6x
 
     # Generate with normal distribution, ensure positive
     time = np.random.normal(mean_time, specs["time_std"])
@@ -99,11 +99,11 @@ def generate_shipping_cost(service_level, zone, carrier, weight, volume):
     mean_cost = specs["base_cost"] + (zone - 1) * specs["zone_factor"] * 2
     mean_cost += weight * 0.5 + volume * 0.001  # Weight and volume factors
 
-    # Apply carrier adjustment with some random variability
+    # Apply carrier adjustment with more random variability
     # This ensures carriers don't always rank in the same order for cost
-    carrier_variability = np.random.normal(0, 0.08)  # ±8% random variation
+    carrier_variability = np.random.normal(0, 0.15)  # ±15% random variation
     adjusted_mult = carrier_adj["cost_mult"] * (1 + carrier_variability)
-    mean_cost *= max(0.8, min(1.3, adjusted_mult))  # Clamp between 0.8x and 1.3x
+    mean_cost *= max(0.7, min(1.4, adjusted_mult))  # Clamp between 0.7x and 1.4x
 
     # Generate with normal distribution, ensure positive
     cost = np.random.normal(mean_cost, specs["cost_std"])
