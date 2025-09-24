@@ -206,9 +206,9 @@ export default function AnalyticsCompare() {
                         'LaserShip': { border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700', badge: 'bg-pink-100 text-pink-800' },
                         'Regional_Express': { border: 'border-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', badge: 'bg-indigo-100 text-indigo-800' }
                       };
-                      
+
                       const colors = baseColors[carrier] || { border: 'border-gray-500', bg: 'bg-gray-50', text: 'text-gray-700', badge: 'bg-gray-100 text-gray-800' };
-                      
+
                       if (isWinner) {
                         return {
                           ...colors,
@@ -217,7 +217,7 @@ export default function AnalyticsCompare() {
                           winnerBadge: 'bg-green-500 text-white'
                         };
                       }
-                      
+
                       return colors;
                     };
 
@@ -236,7 +236,7 @@ export default function AnalyticsCompare() {
                           {sortedCarriers.map(([carrier, data]: [string, any], index) => {
                             const isWinner = carrier === winner;
                             const colors = getCarrierColor(carrier, isWinner);
-                            
+
                             return (
                               <div key={carrier} className={`bg-white p-4 rounded border-l-4 ${colors.border} ${colors.bg} relative`}>
                                 {isWinner && (
@@ -244,7 +244,7 @@ export default function AnalyticsCompare() {
                                     <span className="text-white text-xs font-bold">1</span>
                                   </div>
                                 )}
-                                
+
                                 <div className="flex items-center justify-between mb-2">
                                   <span className={`font-semibold ${colors.text}`}>
                                     {carrier.replace('_', ' ')}
@@ -260,7 +260,7 @@ export default function AnalyticsCompare() {
                                     </span>
                                   </div>
                                 </div>
-                                
+
                                 <div className="text-sm text-gray-600 space-y-1">
                                   <div className="font-medium">
                                     Median: {data.mean?.toFixed(2)} days
