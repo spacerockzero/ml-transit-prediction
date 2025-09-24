@@ -39,7 +39,7 @@ try {
 
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {
-  return { 
+  return {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     models: {
@@ -88,7 +88,7 @@ const predictionInputSchema = {
       enum: ['USPS', 'FedEx', 'UPS', 'DHL', 'Amazon_Logistics', 'OnTrac', 'LaserShip', 'Regional_Express']
     },
     service_level: {
-      type: 'string', 
+      type: 'string',
       enum: ['Ground', 'Express', 'Priority', 'Overnight']
     },
     package_weight_lbs: { type: 'number', minimum: 0.1, maximum: 70 },
@@ -105,10 +105,10 @@ async function callPythonInference(inputData) {
     // Try virtual environment first, fallback to system python
     const venvPath = path.join(__dirname, '..', '.venv');
     const venvPython = path.join(venvPath, 'bin', 'python');
-    
+
     let command;
     let options;
-    
+
     // Check if venv python exists
     try {
       if (existsSync(venvPython)) {
@@ -154,7 +154,7 @@ async function callPythonInference(inputData) {
     // Use child_process.exec instead of PythonShell for better control
     exec(command, options, (err, stdout, stderr) => {
       clearTimeout(timeout);
-      
+
       if (err) {
         console.error('Python execution error:', err);
         console.error('stderr:', stderr);
@@ -162,24 +162,24 @@ async function callPythonInference(inputData) {
         reject(err);
         return;
       }
-      
+
       if (stderr) {
         console.log('Python stderr (debug info):', stderr);
       }
-      
+
       console.log('Python stdout:', stdout);
-      
+
       if (!stdout || stdout.trim().length === 0) {
         console.error('No output from Python script');
         reject(new Error('No output from Python script'));
         return;
       }
-      
+
       try {
         // Split output by lines and find the JSON result
         const lines = stdout.trim().split('\n');
         let jsonResult = null;
-        
+
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (trimmedLine.startsWith('{') && trimmedLine.includes('"success"')) {
@@ -191,7 +191,7 @@ async function callPythonInference(inputData) {
             }
           }
         }
-        
+
         if (jsonResult) {
           console.log('Parsed Python result:', jsonResult);
           resolve(jsonResult);
@@ -236,20 +236,20 @@ fastify.post('/predict', {
   }
 }, async (request, reply) => {
   const startTime = Date.now();
-  
+
   console.log('Predict endpoint called with body:', request.body);
-  
+
   try {
     // Map zone to origin_zone and dest_zone for now
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     console.log('Mapped input:', input);
-    
+
     console.log('Calling Python inference...');
     const result = await callPythonInference(input);
     console.log('Python inference result:', result);
-    
+
     const processingTime = Date.now() - startTime;
-    
+
     if (result.success) {
       return {
         ...result,
@@ -265,11 +265,11 @@ fastify.post('/predict', {
     }
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    
+
     console.error('Predict endpoint error:', error);
     console.error('Error stack:', error.stack);
     console.error('Input that caused error:', request.body);
-    
+
     reply.code(500);
     return {
       success: false,
@@ -292,7 +292,7 @@ fastify.post('/predict/transit-time', {
   try {
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     const result = await callPythonInference(input);
-    
+
     if (result.success) {
       return {
         success: true,
@@ -324,7 +324,7 @@ fastify.post('/predict/shipping-cost', {
   try {
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     const result = await callPythonInference(input);
-    
+
     if (result.success) {
       return {
         success: true,
@@ -365,14 +365,14 @@ fastify.post('/predict/batch', {
 }, async (request, reply) => {
   const startTime = Date.now();
   const { predictions: inputArray } = request.body;
-  
+
   try {
     // Process predictions in parallel
     const promises = inputArray.map(input => callPythonInference(input));
     const results = await Promise.all(promises);
-    
+
     const processingTime = Date.now() - startTime;
-    
+
     return {
       success: true,
       count: results.length,
@@ -381,7 +381,7 @@ fastify.post('/predict/batch', {
     };
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    
+
     reply.code(500);
     return {
       success: false,
@@ -396,13 +396,13 @@ fastify.get('/sample-input', async (request, reply) => {
   try {
     const samplePath = path.join(__dirname, 'onnx_models', 'sample_input.json');
     const sampleInput = JSON.parse(readFileSync(samplePath, 'utf8'));
-    
+
     return {
       sample_input: sampleInput,
       description: "Use this format for prediction requests",
       endpoints: {
         predict_both: "POST /predict",
-        predict_time_only: "POST /predict/transit-time", 
+        predict_time_only: "POST /predict/transit-time",
         predict_cost_only: "POST /predict/shipping-cost"
       }
     };
@@ -418,7 +418,7 @@ fastify.get('/sample-input', async (request, reply) => {
 // Error handler
 fastify.setErrorHandler((error, request, reply) => {
   fastify.log.error(error);
-  
+
   if (error.validation) {
     reply.code(400).send({
       success: false,
@@ -475,6 +475,17 @@ fastify.get('/analytics/summary', async (request, reply) => {
   }
 });
 
+// Get carrier-service summary statistics
+fastify.get('/analytics/carrier-summary', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('carrier_summary');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Get distribution statistics
 fastify.get('/analytics/distributions', {
   schema: {
@@ -502,7 +513,7 @@ fastify.get('/analytics/compare-2sigma', {
     querystring: {
       type: 'object',
       properties: {
-        zones: { 
+        zones: {
           type: 'array',
           items: { type: 'integer', minimum: 1, maximum: 9 }
         }
@@ -525,12 +536,12 @@ fastify.get('/analytics/compare-carriers', {
     querystring: {
       type: 'object',
       properties: {
-        zones: { 
+        zones: {
           type: 'array',
           items: { type: 'integer', minimum: 1, maximum: 9 }
         },
-        metric: { 
-          type: 'string', 
+        metric: {
+          type: 'string',
           enum: ['transit_time_days', 'shipping_cost_usd'],
           default: 'transit_time_days'
         }
@@ -555,7 +566,7 @@ fastify.get('/analytics/percentile', {
       properties: {
         percentile: { type: 'number', minimum: 1, maximum: 100 },
         method: { type: 'string', enum: ['mean', 'median'] },
-        zones: { 
+        zones: {
           type: 'array',
           items: { type: 'integer', minimum: 1, maximum: 9 }
         }
@@ -611,9 +622,9 @@ const start = async () => {
   try {
     const port = process.env.PORT || 3000;
     const host = process.env.HOST || '0.0.0.0';
-    
+
     await fastify.listen({ port, host });
-    
+
     console.log('\\n🚀 Fastify Inference Server Started!');
     console.log(`📡 Server listening on http://${host}:${port}`);
     console.log('\\n📋 Available endpoints:');
@@ -631,10 +642,10 @@ const start = async () => {
     console.log('  GET  /analytics/compare-carriers - Carrier comparison by zone');
     console.log('  GET  /analytics/percentile      - Percentile-based analysis');
     console.log('  GET  /analytics/histogram       - Histogram data for charts');
-    console.log('\\n🎯 Model info:');
-    console.log(`  Transit Time Model: ${modelMetadata.transit_time_model.features} features`);
-    console.log(`  Shipping Cost Model: ${modelMetadata.shipping_cost_model.features} features`);
-    
+    console.log('\\n🎯 Model info (using transit_time_cost models):');
+    console.log(`  Transit Time Component: ${modelMetadata.transit_time_model.features} features`);
+    console.log(`  Shipping Cost Component: ${modelMetadata.shipping_cost_model.features} features`);
+
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

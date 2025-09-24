@@ -27,7 +27,7 @@ interface ActionData {
 
 export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
-  
+
   const data = {
     ship_date: formData.get("ship_date") as string,
     zone: parseInt(formData.get("zone") as string),
@@ -54,15 +54,15 @@ export const action: ActionFunction = async ({ request }) => {
     }
 
     const prediction = await response.json();
-    return { 
-      success: true, 
-      prediction: prediction.predictions // Extract the predictions object 
+    return {
+      success: true,
+      prediction: prediction.predictions // Extract the predictions object
     };
   } catch (error) {
     console.error("Prediction error:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to get prediction" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get prediction"
     };
   }
 };
@@ -89,13 +89,13 @@ export default function TransitPrediction() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="px-4 py-8">
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">
             Transit Time & Cost Prediction
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Get accurate shipping estimates using machine learning
           </p>
         </div>

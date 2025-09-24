@@ -198,8 +198,7 @@ def show_results_summary(success_count, total_steps):
     table.add_column("Description", style="dim")
     
     components = [
-        ("Basic Transit Time", "✅ Success", "Simple transit time prediction model"),
-        ("Combined Time & Cost", "✅ Success", "Production models for time and cost"),
+        ("Combined Time & Cost", "✅ Success", "Production models for time and cost (PRIMARY)"),
         ("Zone-Based Models", "✅ Success", "Enhanced models with zone features"),
         ("Statistical Analysis", "✅ Success", "Distribution analysis and metrics"),
         ("Production Setup", "✅ Success", "Server artifacts and metadata"),
@@ -260,9 +259,9 @@ def main():
     console.print()
     
     # Training steps with progress tracking
+    # NOTE: Skipping deprecated transit_time model - using superior transit_time_cost instead
     training_steps = [
-        ("transit_time", "Training basic transit time model", "python generate_synthetic_data.py && python train.py"),
-        ("transit_time_cost", "Training combined transit time & cost models", "python generate_synthetic_data.py && python train.py"),
+        ("transit_time_cost", "Training combined transit time & cost models (PRIMARY)", "python generate_synthetic_data.py && python train.py"),
         ("transit_time_zones", "Training zone-based models with enhanced features", "python generate_synthetic_data.py && python train.py"),
         ("statistical_analysis", "Generating statistical analysis data", "python generate_statistical_data.py"),
     ]

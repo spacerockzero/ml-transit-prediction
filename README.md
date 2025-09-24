@@ -14,14 +14,24 @@ A complete machine learning pipeline for predicting shipping transit times and c
 ## 🏗️ Architecture
 
 ```
-├── transit_time/           # Basic transit time model training
-├── transit_time_cost/      # Combined transit time & cost models  
-├── transit_time_zones/     # Zone-based models with enhanced features
+├── transit_time/           # ⚠️ DEPRECATED - Use transit_time_cost instead
+├── transit_time_cost/      # ✅ PRIMARY - Combined transit time & cost models  
+├── transit_time_zones/     # ✅ ACTIVE - Zone-based models with enhanced features
 ├── statistical_analysis/   # Data analysis and distribution modeling
 ├── fastify-inference-server/ # Node.js API server for predictions
 ├── remix-frontend/         # React/Remix web application
 └── main.py                 # Entry point for training pipeline
 ```
+
+### 📊 Model Hierarchy
+
+| Directory | Purpose | Status | Use Case |
+|-----------|---------|--------|----------|
+| `transit_time/` | Basic transit time only | 🚫 **DEPRECATED** | Superseded by better models |
+| `transit_time_cost/` | Time + Cost predictions | ✅ **PRIMARY** | Production inference server |
+| `transit_time_zones/` | Zone-optimized models | ✅ **ACTIVE** | Geographic analysis |
+
+**Note:** The inference server uses models from `transit_time_cost/` for optimal accuracy.
 
 ## 🚀 Quick Start
 

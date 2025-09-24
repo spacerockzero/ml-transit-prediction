@@ -60,7 +60,9 @@ def convert_lightgbm_to_onnx_manual(lgb_model, feature_names, model_name):
 def main():
     """Convert LightGBM models to ONNX format."""
     
-    # Set up paths
+    # Set up paths - using the superior transit_time_cost models
+    # NOTE: These models provide both transit time AND cost predictions
+    # and have superseded the old standalone transit_time models
     transit_time_cost_dir = "../transit_time_cost"
     onnx_dir = "onnx_models"
     

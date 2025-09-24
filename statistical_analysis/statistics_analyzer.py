@@ -440,6 +440,37 @@ class ShippingStatisticsAnalyzer:
             }
         
         return summary
+    
+    def get_carrier_service_summary(self) -> Dict:
+        """Get summary statistics for all carriers and service levels."""
+        summary = {}
+        
+        # Get unique carriers
+        carriers = self.df['carrier'].unique()
+        
+        for carrier in carriers:
+            for service in self.metadata['service_levels']:
+                service_data = self.df[
+                    (self.df['carrier'] == carrier) & 
+                    (self.df['service_level'] == service)
+                ]
+                
+                if len(service_data) > 0:
+                    key = f"{carrier}_{service}"
+                    summary[key] = {
+                        'carrier': carrier,
+                        'service_level': service,
+                        'total_shipments': int(len(service_data)),
+                        'avg_transit_time': float(service_data['transit_time_days'].mean()),
+                        'median_transit_time': float(service_data['transit_time_days'].median()),
+                        'avg_cost': float(service_data['shipping_cost_usd'].mean()),
+                        'median_cost': float(service_data['shipping_cost_usd'].median()),
+                        'transit_time_std': float(service_data['transit_time_days'].std()),
+                        'cost_std': float(service_data['shipping_cost_usd'].std()),
+                        'zones_served': sorted(service_data['dest_zone'].unique().tolist())
+                    }
+        
+        return summary
 
 def main():
     """CLI interface for the statistical analyzer."""
