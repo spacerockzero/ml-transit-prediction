@@ -486,6 +486,17 @@ fastify.get('/analytics/carrier-summary', async (request, reply) => {
   }
 });
 
+// Get carrier-zone-service summary statistics
+fastify.get('/analytics/carrier-zone-summary', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('carrier_zone_summary');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Get distribution statistics
 fastify.get('/analytics/distributions', {
   schema: {

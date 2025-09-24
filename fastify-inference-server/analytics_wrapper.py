@@ -34,6 +34,10 @@ def handle_analytics_request(request_type, params=None):
             result = analyzer.get_carrier_service_summary()
             return {"success": True, "data": result}
 
+        elif request_type == "carrier_zone_summary":
+            result = analyzer.get_carrier_zone_summary()
+            return {"success": True, "data": result}
+
         elif request_type == "distributions":
             zone = params.get("zone") if params else None
             service = params.get("service_level") if params else None

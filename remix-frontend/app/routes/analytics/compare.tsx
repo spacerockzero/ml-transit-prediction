@@ -5,7 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 
 export const loader: LoaderFunction = async () => {
   try {
-    // Get carrier-specific summary data
+    // Get zone-specific carrier summary data
+    const carrierZoneResponse = await fetch("http://localhost:3000/analytics/carrier-zone-summary");
+    const carrierZoneResult = await carrierZoneResponse.json();
+
+    if (carrierZoneResult.success && carrierZoneResult.data) {
+      return {
+        success: true,
+        data: {
+          carrier_zone_summary: carrierZoneResult.data
+        }
+      };
+    }
+
+    // Fallback to aggregated carrier summary if zone-specific doesn't work
     const carrierResponse = await fetch("http://localhost:3000/analytics/carrier-summary");
     const carrierResult = await carrierResponse.json();
 
@@ -55,7 +68,51 @@ export default function AnalyticsCompare() {
   const restructureDataByServiceLevel = (data: any) => {
     if (!data) return null;
 
-    // Check if we have carrier_summary data (new format with carrier-specific stats)
+    // Check if we have zone-specific carrier data (new format with zone-specific stats)
+    if (data.carrier_zone_summary) {
+      const serviceComparisons: any = {};
+      const serviceLevels = ['OVERNIGHT', 'EXPRESS', 'PRIORITY', 'STANDARD', 'ECONOMY'];
+      const zones = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+      serviceLevels.forEach(serviceLevel => {
+        serviceComparisons[serviceLevel] = {
+          zones: {}
+        };
+
+        zones.forEach(zone => {
+          const zoneName = `zone_${zone}`;
+          serviceComparisons[serviceLevel].zones[zoneName] = {};
+
+          // Extract zone-specific carrier data from carrier_zone_summary
+          Object.entries(data.carrier_zone_summary).forEach(([key, stats]: [string, any]) => {
+            // Parse carrier, service, and zone from the key (e.g., "USPS_OVERNIGHT_zone_1", "FedEx_EXPRESS_zone_2")
+            const parts = key.split('_');
+            if (parts.length >= 3 && parts[parts.length - 1] === zone.toString() && parts[parts.length - 2] === 'zone') {
+              const carrier = parts[0];
+              // Service level is everything between carrier and "_zone_N"
+              const serviceEndIndex = parts.length - 2;
+              const service = parts.slice(1, serviceEndIndex).join('_');
+
+              if (service === serviceLevel) {
+                serviceComparisons[serviceLevel].zones[zoneName][carrier] = {
+                  mean: stats.median_transit_time || 0,  // Use median instead of average
+                  std: stats.transit_time_std || 0,
+                  lower_2sigma: Math.max(0, (stats.median_transit_time || 0) - 2 * (stats.transit_time_std || 0)),
+                  upper_2sigma: (stats.median_transit_time || 0) + 2 * (stats.transit_time_std || 0),
+                  total_shipments: stats.total_shipments || 0,
+                  median: stats.median_transit_time || 0,
+                  average: stats.avg_transit_time || 0
+                };
+              }
+            }
+          });
+        });
+      });
+
+      return serviceComparisons;
+    }
+
+    // Check if we have carrier_summary data (aggregated format with carrier-specific stats)
     if (data.carrier_summary) {
       const serviceComparisons: any = {};
       const serviceLevels = ['OVERNIGHT', 'EXPRESS', 'PRIORITY', 'STANDARD', 'ECONOMY'];
@@ -70,7 +127,7 @@ export default function AnalyticsCompare() {
           const zoneName = `zone_${zone}`;
           serviceComparisons[serviceLevel].zones[zoneName] = {};
 
-          // Extract carrier data from carrier_summary
+          // Extract carrier data from carrier_summary (aggregated across all zones)
           Object.entries(data.carrier_summary).forEach(([carrierServiceKey, stats]: [string, any]) => {
             // Parse carrier and service from the key (e.g., "USPS_OVERNIGHT", "FedEx_EXPRESS")
             const parts = carrierServiceKey.split('_');
@@ -78,8 +135,6 @@ export default function AnalyticsCompare() {
             const service = parts.slice(1).join('_'); // Handle service names with underscores
 
             if (service === serviceLevel) {
-              // For now, we'll simulate zone-specific data based on the overall stats
-              // In a real implementation, this would come from zone-specific API data
               serviceComparisons[serviceLevel].zones[zoneName][carrier] = {
                 mean: stats.median_transit_time || 0,  // Use median instead of average
                 std: stats.transit_time_std || 0,

@@ -549,6 +549,48 @@ class ShippingStatisticsAnalyzer:
 
         return summary
 
+    def get_carrier_zone_summary(self) -> Dict:
+        """Get summary statistics for all carriers, service levels, and zones."""
+        summary = {}
+
+        # Get unique carriers and zones
+        carriers = self.df["carrier"].unique()
+        zones = sorted(self.df["dest_zone"].unique())
+
+        for carrier in carriers:
+            for service in self.metadata["service_levels"]:
+                for zone in zones:
+                    service_data = self.df[
+                        (self.df["carrier"] == carrier)
+                        & (self.df["service_level"] == service)
+                        & (self.df["dest_zone"] == zone)
+                    ]
+
+                    if len(service_data) > 0:
+                        key = f"{carrier}_{service}_zone_{zone}"
+                        summary[key] = {
+                            "carrier": carrier,
+                            "service_level": service,
+                            "zone": int(zone),
+                            "total_shipments": int(len(service_data)),
+                            "avg_transit_time": float(
+                                service_data["transit_time_days"].mean()
+                            ),
+                            "median_transit_time": float(
+                                service_data["transit_time_days"].median()
+                            ),
+                            "avg_cost": float(service_data["shipping_cost_usd"].mean()),
+                            "median_cost": float(
+                                service_data["shipping_cost_usd"].median()
+                            ),
+                            "transit_time_std": float(
+                                service_data["transit_time_days"].std()
+                            ),
+                            "cost_std": float(service_data["shipping_cost_usd"].std()),
+                        }
+
+        return summary
+
 
 def main():
     """CLI interface for the statistical analyzer."""
