@@ -629,6 +629,95 @@ fastify.get('/analytics/histogram', {
   }
 });
 
+// Advanced Analytics endpoints
+// Temporal patterns analysis
+fastify.get('/analytics/temporal-patterns', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('temporal_patterns');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Geographic intelligence analysis
+fastify.get('/analytics/geographic-intelligence', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('geographic_intelligence');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Package analytics
+fastify.get('/analytics/package-analytics', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('package_analytics');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Performance benchmarking
+fastify.get('/analytics/performance-benchmarking', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('performance_benchmarking');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Customer segmentation analysis
+fastify.get('/analytics/customer-segmentation', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('customer_segmentation');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Anomaly detection
+fastify.get('/analytics/anomaly-detection', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('anomaly_detection');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Predictive insights
+fastify.get('/analytics/predictive-insights', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('predictive_insights');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Comprehensive analytics report
+fastify.get('/analytics/comprehensive-report', async (request, reply) => {
+  try {
+    const result = await callAnalyticsWrapper('comprehensive_report');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
 const start = async () => {
   try {
     const port = process.env.PORT || 3000;

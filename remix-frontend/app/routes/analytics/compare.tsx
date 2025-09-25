@@ -1,6 +1,7 @@
 import { useOutletContext } from "react-router";
 import type { LoaderFunction } from "react-router";
 import { useLoaderData } from "react-router";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 
 export const loader: LoaderFunction = async () => {
@@ -63,6 +64,18 @@ export default function AnalyticsCompare() {
   // Merge context data with loader data
   const mergedData = { ...data, ...loaderData?.data };
   const error = loaderData?.error;
+
+  // State for managing collapsed/expanded service sections
+  // We'll initialize this with the first service level after restructuring data
+  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
+
+  // Toggle function for service sections
+  const toggleServiceSection = (serviceLevel: string) => {
+    setExpandedServices(prev => ({
+      ...prev,
+      [serviceLevel]: !prev[serviceLevel]
+    }));
+  };
 
   // Helper function to restructure carrier summary data by service level for carrier comparison
   const restructureDataByServiceLevel = (data: any) => {
@@ -216,14 +229,53 @@ export default function AnalyticsCompare() {
     )
   );
 
+  // Initialize the first service level as expanded when data loads
+  useEffect(() => {
+    if (restructuredData && Object.keys(expandedServices).length === 0) {
+      const firstServiceLevel = Object.keys(restructuredData)[0];
+      if (firstServiceLevel) {
+        setExpandedServices({ [firstServiceLevel]: true });
+      }
+    }
+  }, [restructuredData, expandedServices]);
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Carrier Service Comparison (by Median)</CardTitle>
-          <CardDescription>
-            Compare equivalent service levels across different carriers ranked by median transit times. Winners are determined by lowest median delivery time.
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Carrier Service Comparison (by Median)</CardTitle>
+              <CardDescription>
+                Compare equivalent service levels across different carriers ranked by median transit times. Winners are determined by lowest median delivery time.
+              </CardDescription>
+            </div>
+            {restructuredData && Object.keys(restructuredData).length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const allServiceLevels = Object.keys(restructuredData);
+                    const allExpanded = allServiceLevels.reduce((acc, service) => ({
+                      ...acc,
+                      [service]: true
+                    }), {});
+                    setExpandedServices(allExpanded);
+                  }}
+                  className="px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors duration-200"
+                >
+                  Expand All
+                </button>
+                <button
+                  onClick={() => {
+                    setExpandedServices({});
+                  }}
+                  className="px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                >
+                  Collapse All
+                </button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {error && (
@@ -234,20 +286,66 @@ export default function AnalyticsCompare() {
 
           {restructuredData && (
             <div className="space-y-8">
-              {Object.entries(restructuredData).map(([serviceLevel, serviceData]: [string, any]) => (
-                <div key={serviceLevel} className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">{serviceLevel} Service Comparison</h3>
+              {Object.entries(restructuredData).map(([serviceLevel, serviceData]: [string, any]) => {
+                const isExpanded = expandedServices[serviceLevel];
+                const hasZoneData = Object.entries(serviceData.zones).some(([_, carriers]: [string, any]) =>
+                  Object.keys(carriers).length > 0
+                );
 
-                  {Object.entries(serviceData.zones).map(([zoneName, carriers]: [string, any]) => {
-                    // Skip if no carriers have data for this zone
-                    if (Object.keys(carriers).length === 0) return null;
+                return (
+                  <div key={serviceLevel} className={`bg-gray-50 rounded-lg border border-gray-200 ${isExpanded ? 'shadow-md' : 'shadow-sm'} transition-shadow duration-200`}>
+                    {/* Collapsible Header */}
+                    <button
+                      onClick={() => toggleServiceSection(serviceLevel)}
+                      className={`w-full p-6 text-left hover:bg-gray-100 rounded-lg transition-all duration-200 flex items-center justify-between ${isExpanded ? 'bg-white' : ''}`}
+                      disabled={!hasZoneData}
+                    >
+                      <div>
+                        <h3 className={`text-xl font-semibold ${hasZoneData ? 'text-gray-800' : 'text-gray-500'}`}>
+                          {serviceLevel} Service Comparison
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {hasZoneData ?
+                            `${isExpanded ? '▼' : '▶'} ${Object.entries(serviceData.zones).filter(([_, carriers]: [string, any]) =>
+                              Object.keys(carriers).length > 0
+                            ).length} zones with carrier data - Click to ${isExpanded ? 'collapse' : 'expand'}` :
+                            'No carrier data available for this service level'
+                          }
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasZoneData && (
+                          <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full border">
+                            {Object.entries(serviceData.zones).filter(([_, carriers]: [string, any]) =>
+                              Object.keys(carriers).length > 0
+                            ).length} zones available
+                          </span>
+                        )}
+                        {hasZoneData && (
+                          <svg
+                            className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
 
-                    // Sort carriers by transit time (lower is better)
-                    const sortedCarriers = Object.entries(carriers)
-                      .filter(([_, data]: [string, any]) => data && data.mean !== undefined)
-                      .sort(([_a, dataA]: [string, any], [_b, dataB]: [string, any]) => dataA.mean - dataB.mean);
+                    {/* Collapsible Content */}
+                    {isExpanded && hasZoneData && (
+                      <div className="px-6 pb-4 space-y-3">{Object.entries(serviceData.zones).map(([zoneName, carriers]: [string, any]) => {
+                        // Skip if no carriers have data for this zone
+                        if (Object.keys(carriers).length === 0) return null;
 
-                    const winner = sortedCarriers.length > 0 ? sortedCarriers[0][0] : null;
+                        // Sort carriers by transit time (lower is better)
+                        const sortedCarriers = Object.entries(carriers)
+                          .filter(([_, data]: [string, any]) => data && data.mean !== undefined)
+                          .sort(([_a, dataA]: [string, any], [_b, dataB]: [string, any]) => dataA.mean - dataB.mean);
+
+                        const winner = sortedCarriers.length > 0 ? sortedCarriers[0][0] : null;
 
                     // Define carrier colors
                     const getCarrierColor = (carrier: string, isWinner: boolean) => {
@@ -277,61 +375,72 @@ export default function AnalyticsCompare() {
                     };
 
                     return (
-                      <div key={zoneName} className="mb-6">
-                        <h4 className="font-medium mb-3 text-gray-700 flex items-center gap-2">
-                          {zoneName.replace('_', ' ').toUpperCase()}
+                      <div key={zoneName} className="mb-3">
+                        <h4 className="font-medium mb-1.5 text-gray-700 text-sm flex items-center gap-2">
+                          <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-semibold">
+                            {zoneName.replace('_', ' ').toUpperCase()}
+                          </span>
                           {winner && (
-                            <span className="text-sm text-green-600 font-semibold">
-                              🏆 Winner: {winner} ({(sortedCarriers[0][1] as any).mean.toFixed(2)} days median)
+                            <span className="text-xs text-green-600 font-semibold bg-green-50 px-2 py-0.5 rounded">
+                              🏆 {winner}: {(sortedCarriers[0][1] as any).mean.toFixed(1)} days (median)
                             </span>
                           )}
                         </h4>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="flex gap-2">
                           {sortedCarriers.map(([carrier, data]: [string, any], index) => {
                             const isWinner = carrier === winner;
                             const colors = getCarrierColor(carrier, isWinner);
 
                             return (
-                              <div key={carrier} className={`bg-white p-4 rounded border-l-4 ${colors.border} ${colors.bg} relative`}>
+                              <div key={carrier} className={`bg-white px-3 py-2 rounded border-l-2 ${colors.border} ${colors.bg} relative flex-1`}>
                                 {isWinner && (
-                                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                                     <span className="text-white text-xs font-bold">1</span>
                                   </div>
                                 )}
 
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className={`font-semibold ${colors.text}`}>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className={`font-medium text-xs ${colors.text} truncate flex-1 pr-1`}>
                                     {carrier.replace('_', ' ')}
                                   </span>
-                                  <div className="flex gap-1">
-                                    {isWinner && (
-                                      <span className={`text-xs px-2 py-1 rounded ${colors.winnerBadge || 'bg-green-500 text-white'}`}>
-                                        Winner
-                                      </span>
-                                    )}
-                                    <span className={`text-xs px-2 py-1 rounded ${colors.badge}`}>
-                                      #{index + 1}
+                                  {isWinner && (
+                                    <span className={`text-xs px-1 py-0.5 rounded flex-shrink-0 ${colors.winnerBadge || 'bg-green-500 text-white'}`}>
+                                      1st
                                     </span>
-                                  </div>
+                                  )}
+                                  {!isWinner && index < 3 && (
+                                    <span className={`text-xs px-1 py-0.5 rounded flex-shrink-0 ${colors.badge}`}>
+                                      {index + 1}
+                                    </span>
+                                  )}
                                 </div>
 
-                                <div className="text-sm text-gray-600 space-y-1">
-                                  <div className="font-medium">
-                                    Median: {data.mean?.toFixed(2)} days
-                                  </div>
-                                  <div className="text-xs">
-                                    Average: {data.average?.toFixed(2)} days
-                                  </div>
-                                  <div>
-                                    Std Dev: ±{data.std?.toFixed(2)} days
-                                  </div>
-                                  <div className="text-xs">
-                                    2σ Range: {data.lower_2sigma?.toFixed(2)} - {data.upper_2sigma?.toFixed(2)} days
+                                <div className="text-center space-y-1">
+                                  <div className={`font-bold ${isWinner ? 'text-green-700 text-sm' : 'text-gray-800 text-sm'}`}>
+                                    {data.mean?.toFixed(1)} days
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    Shipments: {data.total_shipments?.toLocaleString()}
+                                    median transit
                                   </div>
+                                  <div className="flex justify-between text-xs text-gray-600 mt-1 pt-1 border-t border-gray-100">
+                                    <div className="text-center flex-1">
+                                      <div className="font-medium">{data.average?.toFixed(1)}d</div>
+                                      <div className="text-xs text-gray-500">avg</div>
+                                    </div>
+                                    <div className="text-center flex-1">
+                                      <div className="font-medium">±{data.std?.toFixed(1)}d</div>
+                                      <div className="text-xs text-gray-500">std</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-500 pt-1">
+                                    {data.total_shipments?.toLocaleString()} shipments
+                                  </div>
+                                  {data.lower_2sigma !== undefined && data.upper_2sigma !== undefined && (
+                                    <div className="text-xs text-gray-400 pt-1">
+                                      Range: {data.lower_2sigma?.toFixed(1)}-{data.upper_2sigma?.toFixed(1)}d
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -340,8 +449,11 @@ export default function AnalyticsCompare() {
                       </div>
                     );
                   })}
-                </div>
-              ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

@@ -1,139 +1,64 @@
 #!/usr/bin/env python3
 """
-Analytics Wrapper for Fastify Server
-Provides analytics endpoints for the shipping statistics.
+Analytics wrapper for Fastify server
+Provides advanced analytics and business intelligence endpoints.
 """
 
-import json
 import sys
 import os
-from pathlib import Path
-from contextlib import redirect_stdout, redirect_stderr
-from io import StringIO
+import json
 
-# Add the statistical analysis directory to the path
-sys.path.append(str(Path(__file__).parent.parent / "statistical_analysis"))
+# Add the statistical_analysis directory to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+statistical_dir = os.path.join(parent_dir, "statistical_analysis")
+sys.path.append(statistical_dir)
 
-# Import with stdout/stderr suppressed to avoid print statements interfering with JSON output
-with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-    from statistics_analyzer import ShippingStatisticsAnalyzer
+from statistics_analyzer import ShippingStatisticsAnalyzer
+from advanced_analytics import ShippingAnalytics
 
 
-def handle_analytics_request(request_type, params=None):
-    """Handle analytics requests from the Fastify server."""
+def handle_request(request_type, data=None):
+    """Handle analytics requests."""
     try:
-        # Initialize the analyzer with output suppressed
-        with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-            analyzer = ShippingStatisticsAnalyzer()
+        analyzer = ShippingStatisticsAnalyzer()
+        advanced_analyzer = ShippingAnalytics()
 
         if request_type == "summary":
-            result = analyzer.get_service_level_summary()
-            return {"success": True, "data": result}
-
+            return analyzer.get_service_level_summary()
         elif request_type == "carrier_summary":
-            result = analyzer.get_carrier_service_summary()
-            return {"success": True, "data": result}
-
+            return analyzer.get_carrier_service_summary()
         elif request_type == "carrier_zone_summary":
-            result = analyzer.get_carrier_zone_summary()
-            return {"success": True, "data": result}
-
-        elif request_type == "distributions":
-            zone = params.get("zone") if params else None
-            service = params.get("service_level") if params else None
-
-            if zone and service:
-                # Get specific distribution
-                transit_stats = analyzer.get_distribution_stats(
-                    service, zone, "transit_time_days"
-                )
-                cost_stats = analyzer.get_distribution_stats(
-                    service, zone, "shipping_cost_usd"
-                )
-
-                result = {
-                    "service_level": service,
-                    "zone": zone,
-                    "transit_time": transit_stats,
-                    "shipping_cost": cost_stats,
-                }
-            else:
-                # Get all distributions
-                result = analyzer.get_all_distributions()
-
-            return {"success": True, "data": result}
-
-        elif request_type == "compare_2sigma":
-            zones = params.get("zones") if params else None
-            result = analyzer.compare_service_levels_2sigma(zones)
-
-            return {"success": True, "data": result}
-
-        elif request_type == "compare_carriers":
-            zones = params.get("zones") if params else None
-            metric = params.get("metric", "transit_time_days")
-            result = analyzer.compare_carriers_by_zone(zones, metric)
-
-            return {"success": True, "data": result}
-
-        elif request_type == "percentile_analysis":
-            percentile = params.get("percentile", 80)
-            method = params.get("method", "median")
-            zones = params.get("zones") if params else None
-
-            result = analyzer.find_best_service_by_percentile(percentile, zones, method)
-
-            return {"success": True, "data": result}
-
-        elif request_type == "histogram":
-            service = params.get("service_level")
-            zone = params.get("zone")
-            metric = params.get("metric", "transit_time_days")
-            bins = params.get("bins", 30)
-
-            if not service or not zone:
-                return {
-                    "success": False,
-                    "error": "service_level and zone are required for histogram data",
-                }
-
-            result = analyzer.get_histogram_data(service, zone, metric, bins)
-
-            if result is None:
-                return {
-                    "success": False,
-                    "error": "No data found for the specified service level and zone",
-                }
-
-            return {"success": True, "data": result}
-
+            return analyzer.get_carrier_zone_summary()
+        elif request_type == "temporal_patterns":
+            return advanced_analyzer.temporal_patterns()
+        elif request_type == "geographic_intelligence":
+            return advanced_analyzer.geographic_intelligence()
+        elif request_type == "package_analytics":
+            return advanced_analyzer.package_analytics()
+        elif request_type == "performance_benchmarking":
+            return advanced_analyzer.performance_benchmarking()
+        elif request_type == "customer_segmentation":
+            segments = advanced_analyzer.customer_segmentation()
+            # Convert numpy arrays to lists for JSON serialization
+            segments["cluster_centers"] = segments["cluster_centers"].tolist()
+            return segments
+        elif request_type == "anomaly_detection":
+            return advanced_analyzer.anomaly_detection()
+        elif request_type == "predictive_insights":
+            return advanced_analyzer.predictive_insights()
+        elif request_type == "comprehensive_report":
+            return advanced_analyzer.generate_comprehensive_report()
         else:
-            return {"success": False, "error": f"Unknown request type: {request_type}"}
-
+            return {"error": f"Unknown request type: {request_type}"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def main():
-    """CLI interface for analytics wrapper."""
-    if len(sys.argv) < 2:
-        print(json.dumps({"success": False, "error": "Request type required"}))
-        return
-
-    request_type = sys.argv[1]
-    params = {}
-
-    # Parse additional parameters
-    if len(sys.argv) > 2:
-        try:
-            params = json.loads(sys.argv[2])
-        except json.JSONDecodeError:
-            print(json.dumps({"success": False, "error": "Invalid JSON parameters"}))
-            return
-
-    result = handle_analytics_request(request_type, params)
-    print(json.dumps(result))
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        request_type = sys.argv[1]
+        result = handle_request(request_type)
+        print(json.dumps({"success": True, "data": result}))
+    else:
+        print(json.dumps({"success": False, "error": "No request type provided"}))
