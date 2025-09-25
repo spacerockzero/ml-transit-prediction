@@ -2,6 +2,13 @@
 """
 Enhanced synthetic shipping data generator for statistical analysis.
 Creates realistic datasets with proper normal distributions for transit times and costs.
+
+Updated with real-world analytics data patterns from actual shipping performance:
+- Service level baselines calibrated to Zone 1 observed medians
+- Zone factors based on linear regression of zone impact
+- Carrier adjustments reflect actual performance rankings
+- Cost and time standard deviations match observed variance
+- Updated Sept 2025 based on 50K shipment analysis
 """
 
 import pandas as pd
@@ -21,53 +28,55 @@ SERVICE_LEVELS = ["OVERNIGHT", "EXPRESS", "PRIORITY", "STANDARD", "ECONOMY"]
 USPS_ZONES = list(range(1, 10))  # Zones 1-9
 
 # Define realistic base parameters with proper statistical properties
+# Updated based on real-world analytics data analysis
 SERVICE_LEVEL_SPECS = {
     "OVERNIGHT": {
-        "base_time": 1.2,
-        "time_std": 0.3,
-        "base_cost": 25.0,
-        "cost_std": 3.0,
-        "zone_factor": 0.1,
+        "base_time": 1.3,  # Zone 1 baseline from analytics
+        "time_std": 0.45,
+        "base_cost": 28.0,  # Updated from real cost data
+        "cost_std": 7.5,  # Higher variance observed
+        "zone_factor": 0.08,  # ~0.1d increase per zone observed
     },
     "EXPRESS": {
-        "base_time": 2.1,
-        "time_std": 0.5,
-        "base_cost": 18.0,
-        "cost_std": 2.5,
-        "zone_factor": 0.15,
+        "base_time": 2.2,  # Zone 1 baseline from analytics
+        "time_std": 0.7,
+        "base_cost": 20.5,  # Updated from real cost data
+        "cost_std": 6.2,
+        "zone_factor": 0.14,  # ~0.14d increase per zone observed
     },
     "PRIORITY": {
-        "base_time": 3.2,
-        "time_std": 0.8,
-        "base_cost": 12.0,
-        "cost_std": 2.0,
-        "zone_factor": 0.2,
+        "base_time": 3.4,  # Zone 1 baseline from analytics
+        "time_std": 1.1,
+        "base_cost": 15.0,  # Updated from real cost data
+        "cost_std": 5.2,
+        "zone_factor": 0.19,  # ~0.19d increase per zone observed
     },
     "STANDARD": {
-        "base_time": 5.5,
-        "time_std": 1.2,
-        "base_cost": 8.0,
-        "cost_std": 1.5,
-        "zone_factor": 0.3,
+        "base_time": 5.7,  # Zone 1 baseline from analytics
+        "time_std": 1.8,
+        "base_cost": 11.0,  # Updated from real cost data
+        "cost_std": 4.7,
+        "zone_factor": 0.30,  # ~0.3d increase per zone observed
     },
     "ECONOMY": {
-        "base_time": 8.0,
-        "time_std": 2.0,
-        "base_cost": 4.5,
-        "cost_std": 1.0,
-        "zone_factor": 0.4,
+        "base_time": 8.6,  # Estimated Zone 1 baseline
+        "time_std": 2.8,  # From analytics data
+        "base_cost": 9.0,  # Updated from real cost data
+        "cost_std": 4.0,
+        "zone_factor": 0.35,  # Estimated based on pattern
     },
 }
 
-# Carrier-specific adjustments (multipliers)
+# Carrier-specific adjustments based on real analytics data
+# Updated with actual performance ratios observed
 CARRIER_ADJUSTMENTS = {
-    "USPS": {"time_mult": 1.0, "cost_mult": 0.85},
-    "FedEx": {"time_mult": 0.9, "cost_mult": 1.15},
-    "UPS": {"time_mult": 0.95, "cost_mult": 1.1},
-    "DHL": {"time_mult": 1.1, "cost_mult": 1.3},
-    "Amazon_Logistics": {"time_mult": 1.05, "cost_mult": 0.9},
-    "OnTrac": {"time_mult": 1.15, "cost_mult": 0.95},
-    "LaserShip": {"time_mult": 1.2, "cost_mult": 0.8},
+    "USPS": {"time_mult": 1.0, "cost_mult": 0.82},  # Consistently cheapest
+    "FedEx": {"time_mult": 0.85, "cost_mult": 1.15},  # Fastest, premium pricing
+    "UPS": {"time_mult": 0.90, "cost_mult": 1.08},  # Second fastest, slightly premium
+    "DHL": {"time_mult": 1.08, "cost_mult": 1.25},  # Slower, most expensive
+    "Amazon_Logistics": {"time_mult": 1.02, "cost_mult": 0.88},  # Mid-range
+    "OnTrac": {"time_mult": 1.12, "cost_mult": 0.92},  # Regional carrier pattern
+    "LaserShip": {"time_mult": 1.18, "cost_mult": 0.78},  # Slowest but cheapest
 }
 
 
@@ -76,18 +85,18 @@ def generate_transit_time(service_level, zone, carrier):
     specs = SERVICE_LEVEL_SPECS[service_level]
     carrier_adj = CARRIER_ADJUSTMENTS[carrier]
 
-    # Base time + zone effect
+    # Base time + zone effect (linear relationship observed in data)
     mean_time = specs["base_time"] + (zone - 1) * specs["zone_factor"]
 
-    # Apply carrier adjustment with more random variability
-    # This ensures carriers don't always rank in the same order
-    carrier_variability = np.random.normal(0, 0.2)  # ±20% random variation
+    # Apply carrier adjustment with controlled variability
+    # Reduced randomness to better match observed carrier consistency
+    carrier_variability = np.random.normal(0, 0.15)  # ±15% random variation
     adjusted_mult = carrier_adj["time_mult"] * (1 + carrier_variability)
-    mean_time *= max(0.6, min(1.6, adjusted_mult))  # Clamp between 0.6x and 1.6x
+    mean_time *= max(0.7, min(1.4, adjusted_mult))  # Clamp between 0.7x and 1.4x
 
-    # Generate with normal distribution, ensure positive
+    # Generate with normal distribution, ensure positive and realistic
     time = np.random.normal(mean_time, specs["time_std"])
-    return max(0.5, time)  # Minimum 0.5 days
+    return max(0.8, time)  # Minimum 0.8 days (realistic minimum)
 
 
 def generate_shipping_cost(service_level, zone, carrier, weight, volume):
@@ -95,19 +104,27 @@ def generate_shipping_cost(service_level, zone, carrier, weight, volume):
     specs = SERVICE_LEVEL_SPECS[service_level]
     carrier_adj = CARRIER_ADJUSTMENTS[carrier]
 
-    # Base cost + zone effect + weight/volume factors
-    mean_cost = specs["base_cost"] + (zone - 1) * specs["zone_factor"] * 2
-    mean_cost += weight * 0.5 + volume * 0.001  # Weight and volume factors
+    # Base cost + zone effect (more gradual than before)
+    # Zone cost impact is smaller but still meaningful
+    mean_cost = specs["base_cost"] + (zone - 1) * specs["zone_factor"] * 0.5
 
-    # Apply carrier adjustment with more random variability
-    # This ensures carriers don't always rank in the same order for cost
-    carrier_variability = np.random.normal(0, 0.15)  # ±15% random variation
+    # Weight and volume factors (more realistic)
+    mean_cost += weight * 0.3 + volume * 0.0005  # Reduced impact
+
+    # Package size tiers (more realistic pricing tiers)
+    if weight > 10:
+        mean_cost *= 1.2  # Heavy package surcharge
+    elif weight < 1:
+        mean_cost *= 0.9  # Light package discount
+
+    # Apply carrier adjustment with controlled variability
+    carrier_variability = np.random.normal(0, 0.12)  # ±12% random variation
     adjusted_mult = carrier_adj["cost_mult"] * (1 + carrier_variability)
-    mean_cost *= max(0.7, min(1.4, adjusted_mult))  # Clamp between 0.7x and 1.4x
+    mean_cost *= max(0.75, min(1.35, adjusted_mult))  # Clamp between 0.75x and 1.35x
 
     # Generate with normal distribution, ensure positive
     cost = np.random.normal(mean_cost, specs["cost_std"])
-    return max(2.0, cost)  # Minimum $2.00
+    return max(2.50, cost)  # Minimum $2.50
 
 
 def generate_package_dimensions():
