@@ -1,9 +1,70 @@
-import { useOutletContext } from "react-router";
-import { Form } from "react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
-import { Select } from "~/components/ui/select";
-import { Label } from "~/components/ui/label";
+// This file redirects to the compare page where optimizer functionality now lives// This file is temporarily here to prevent build errorsimport { useOutletContext } from "react-router";
+
+
+
+import { redirect } from "react-router";// The optimizer functionality has been moved to the compare pageimport { Form } from "react-router";
+
+import type { LoaderFunction } from "react-router";
+
+import type { ActionFunction } from "react-router";
+
+export const loader: LoaderFunction = async () => {
+
+  // Redirect to the compare page where optimizer functionality now livesimport { redirect } from "react-router";import { useActionData } from "react-router";
+
+  throw redirect("/analytics/compare");
+
+};import type { LoaderFunction } from "react-router";import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+
+
+
+export default function OptimizeRedirect() {import { Button } from "~/components/ui/button";
+
+  return null;
+
+}export const loader: LoaderFunction = async () => {import { Select } from "~/components/ui/select";
+
+  // Redirect to the compare page where optimizer functionality now livesimport { Label } from "~/components/ui/label";
+
+  throw redirect("/analytics/compare");
+
+};export const action: ActionFunction = async ({ request }) => {
+
+  const formData = await request.formData();
+
+export default function OptimizeRedirect() {  const analysisType = formData.get("analysis_type") as string;
+
+  return null;
+
+}  if (analysisType !== "percentile") {
+    return { success: false, error: "Invalid analysis type" };
+  }
+
+  try {
+    const percentile = formData.get("percentile") as string;
+    const method = formData.get("method") as string;
+
+    const params = new URLSearchParams();
+    if (percentile) params.append("percentile", percentile);
+    if (method) params.append("method", method);
+
+    const url = `http://localhost:3000/analytics/percentile?${params.toString()}`;
+    const response = await fetch(url);
+    const result = await response.json();
+
+    return {
+      success: true,
+      data: {
+        percentile: result.success ? result.data : null
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to perform analysis"
+    };
+  }
+};
 
 interface ContextType {
   data: any;
@@ -14,6 +75,10 @@ interface ContextType {
 
 export default function AnalyticsOptimizer() {
   const { data, formData, setFormData, isLoading } = useOutletContext<ContextType>();
+  const actionData = useActionData<any>();
+
+  // Use action data if available, otherwise fall back to context data
+  const displayData = actionData?.data || data;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -29,7 +94,7 @@ export default function AnalyticsOptimizer() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form method="post" action="/analytics" className="space-y-4">
+          <Form method="post" action="/analytics/optimizer" className="space-y-4">
             <input type="hidden" name="analysis_type" value="percentile" />
 
             <div className="grid grid-cols-2 gap-4">
@@ -67,12 +132,18 @@ export default function AnalyticsOptimizer() {
             </Button>
           </Form>
 
-          {data.percentile && (
+          {actionData?.error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-600">Error: {actionData.error}</p>
+            </div>
+          )}
+
+          {displayData.percentile && (
             <div className="mt-6 space-y-4">
               <h3 className="text-lg font-semibold">
                 Percentile Analysis Results ({formData.percentile}th percentile, {formData.method})
               </h3>
-              {Object.entries(data.percentile).map(([zone, zoneData]: [string, any]) => (
+              {Object.entries(displayData.percentile).map(([zone, zoneData]: [string, any]) => (
                 <div key={zone} className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">USPS {zone.replace('_', ' ')}</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

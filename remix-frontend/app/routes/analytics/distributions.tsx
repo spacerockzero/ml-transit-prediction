@@ -62,6 +62,7 @@ export default function AnalyticsDistributions() {
   // Merge context data with loader data
   const mergedData = { ...data, ...loaderData?.data };
   const error = loaderData?.error;
+  const histogram = mergedData.histogram || loaderData?.data?.histogram;
 
   const handleInputChange = (field: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -122,15 +123,15 @@ export default function AnalyticsDistributions() {
             </div>
           )}
 
-          {mergedData.histogram && (
+          {histogram && (
             <div>
               <h3 className="text-lg font-semibold mb-4">
                 Distribution: {currentServiceLevel} - Zone {currentZone}
               </h3>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={mergedData.histogram.bins?.map((bin: number, index: number) => ({
+                <BarChart data={histogram.bins?.map((bin: number, index: number) => ({
                   bin: bin.toFixed(1),
-                  count: mergedData.histogram.counts[index]
+                  count: histogram.counts[index]
                 }))}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="bin" />
@@ -140,16 +141,24 @@ export default function AnalyticsDistributions() {
                 </BarChart>
               </ResponsiveContainer>
               <p className="text-sm text-gray-600 mt-2">
-                Total samples: {mergedData.histogram.total_count?.toLocaleString()}
+                Total samples: {histogram.total_count?.toLocaleString()}
               </p>
             </div>
           )}
 
-          {!mergedData.histogram && !error && (
+          {!histogram && !error && (
             <div className="text-center py-8 text-muted-foreground">
               Loading distribution chart...
             </div>
           )}
+
+          {/* Debug info */}
+          <div className="mt-4 p-2 bg-gray-100 text-xs">
+            <details>
+              <summary>Debug Data</summary>
+              <pre>{JSON.stringify({ loaderData, mergedData, histogram }, null, 2)}</pre>
+            </details>
+          </div>
         </CardContent>
       </Card>
     </div>

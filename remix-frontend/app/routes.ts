@@ -8,6 +8,5 @@ export default [
     route("overview", "routes/analytics/overview.tsx"),
     route("compare", "routes/analytics/compare.tsx"),
     route("distributions", "routes/analytics/distributions.tsx"),
-    route("optimizer", "routes/analytics/optimizer.tsx"),
   ]),
 ] satisfies RouteConfig;

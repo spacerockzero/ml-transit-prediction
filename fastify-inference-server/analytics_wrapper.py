@@ -49,6 +49,39 @@ def handle_request(request_type, data=None):
             return advanced_analyzer.predictive_insights()
         elif request_type == "comprehensive_report":
             return advanced_analyzer.generate_comprehensive_report()
+        elif request_type == "histogram":
+            # Extract parameters for histogram
+            if data:
+                service_level = data.get("service_level", "EXPRESS")
+                zone = int(data.get("zone", 5))
+                metric = data.get("metric", "transit_time_days")
+                bins = int(data.get("bins", 30))
+            else:
+                service_level = "EXPRESS"
+                zone = 5
+                metric = "transit_time_days"
+                bins = 30
+
+            histogram_data = analyzer.get_histogram_data(
+                service_level, zone, metric, bins
+            )
+            return (
+                histogram_data
+                if histogram_data
+                else {"error": "No data found for the specified parameters"}
+            )
+        elif request_type == "percentile" or request_type == "percentile_analysis":
+            # Extract parameters for percentile analysis
+            if data:
+                percentile = float(data.get("percentile", 80))
+                method = data.get("method", "median")
+                zones = data.get("zones", None)
+            else:
+                percentile = 80
+                method = "median"
+                zones = None
+
+            return analyzer.find_best_service_by_percentile(percentile, zones, method)
         else:
             return {"error": f"Unknown request type: {request_type}"}
     except Exception as e:
@@ -58,7 +91,15 @@ def handle_request(request_type, data=None):
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         request_type = sys.argv[1]
-        result = handle_request(request_type)
+        # Parse parameters if provided
+        data = None
+        if len(sys.argv) > 2:
+            try:
+                data = json.loads(sys.argv[2])
+            except json.JSONDecodeError:
+                data = None
+
+        result = handle_request(request_type, data)
         print(json.dumps({"success": True, "data": result}))
     else:
         print(json.dumps({"success": False, "error": "No request type provided"}))

@@ -124,8 +124,7 @@ export default function AnalyticsLayout() {
   const tabs = [
     { id: "overview", label: "Overview", href: "/analytics/overview" },
     { id: "compare", label: "Service Comparison", href: "/analytics/compare" },
-    { id: "distributions", label: "Distributions", href: "/analytics/distributions" },
-    { id: "optimizer", label: "Service Optimizer", href: "/analytics/optimizer" }
+    { id: "distributions", label: "Distributions", href: "/analytics/distributions" }
   ];
 
   const currentTab = tabs.find(tab => location.pathname === tab.href ||

@@ -148,11 +148,6 @@ GET /analytics/histogram?service_level=EXPRESS&zone=5&metric=transit_time_days&b
 - **Winner Identification**: Automatic selection of optimal services
 - **Confidence Intervals**: 95% confidence bounds for each service level
 
-### **Service Optimizer Tab**
-- **Percentile Thresholds**: Customizable percentage-based analysis (70%-95%)
-- **Method Selection**: Choose between median or mean optimization
-- **Optimal Service Selection**: Data-driven recommendations for each zone
-
 ### **Distributions Tab**
 - **Interactive Histograms**: Dynamic distribution visualization
 - **Service/Zone Selection**: Drill down into specific combinations

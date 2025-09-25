@@ -1,12 +1,36 @@
-import { useOutletContext } from "react-router";
+import { useOutletContext, useSearchParams } from "react-router";
 import type { LoaderFunction } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { Select } from "~/components/ui/select";
+import { Label } from "~/components/ui/label";
 
-export const loader: LoaderFunction = async () => {
+export const loader: LoaderFunction = async ({ request }) => {
+  const url = new URL(request.url);
+  const percentile = url.searchParams.get("percentile") || "80";
+  const method = url.searchParams.get("method") || "median";
+
   try {
-    // Get zone-specific carrier summary data
+    // Get percentile analysis data
+    const params = new URLSearchParams();
+    params.append("percentile", percentile);
+    params.append("method", method);
+
+    const percentileResponse = await fetch(`http://localhost:3000/analytics/percentile?${params.toString()}`);
+    const percentileResult = await percentileResponse.json();
+
+    if (percentileResult.success && percentileResult.data) {
+      return {
+        success: true,
+        data: {
+          percentile: percentileResult.data
+        },
+        params: { percentile, method }
+      };
+    }
+
+    // Fallback to zone-specific carrier summary data
     const carrierZoneResponse = await fetch("http://localhost:3000/analytics/carrier-zone-summary");
     const carrierZoneResult = await carrierZoneResponse.json();
 
@@ -15,7 +39,8 @@ export const loader: LoaderFunction = async () => {
         success: true,
         data: {
           carrier_zone_summary: carrierZoneResult.data
-        }
+        },
+        params: { percentile, method }
       };
     }
 
@@ -28,7 +53,8 @@ export const loader: LoaderFunction = async () => {
         success: true,
         data: {
           carrier_summary: carrierResult.data
-        }
+        },
+        params: { percentile, method }
       };
     }
 
@@ -40,12 +66,14 @@ export const loader: LoaderFunction = async () => {
       success: true,
       data: {
         summary: summaryResult.success ? summaryResult.data : null
-      }
+      },
+      params: { percentile, method }
     };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to load comparison data"
+      error: error instanceof Error ? error.message : "Failed to load comparison data",
+      params: { percentile, method }
     };
   }
 };
@@ -60,10 +88,23 @@ interface ContextType {
 export default function AnalyticsCompare() {
   const { data } = useOutletContext<ContextType>();
   const loaderData = useLoaderData<any>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Get current values from URL params or defaults
+  const currentPercentile = searchParams.get("percentile") || "80";
+  const currentMethod = searchParams.get("method") || "median";
 
   // Merge context data with loader data
   const mergedData = { ...data, ...loaderData?.data };
   const error = loaderData?.error;
+
+  // Handle form input changes
+  const handleInputChange = (field: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set(field, value);
+    navigate(`/analytics/compare?${newParams.toString()}`, { replace: true });
+  };
 
   // State for managing collapsed/expanded service sections
   // We'll initialize this with the first service level after restructuring data
@@ -245,9 +286,9 @@ export default function AnalyticsCompare() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Carrier Service Comparison (by Median)</CardTitle>
+              <CardTitle>Service Level Comparison & Optimization ({currentPercentile}th percentile, {currentMethod})</CardTitle>
               <CardDescription>
-                Compare equivalent service levels across different carriers ranked by median transit times. Winners are determined by lowest median delivery time.
+                Compare service levels across zones using percentile analysis. Winners are determined by lowest {currentMethod} transit time within the {currentPercentile}th percentile.
               </CardDescription>
             </div>
             {restructuredData && Object.keys(restructuredData).length > 0 && (
@@ -278,9 +319,79 @@ export default function AnalyticsCompare() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Percentile Analysis Controls */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">Percentile Analysis Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="percentile">Percentile Threshold (%)</Label>
+                <Select
+                  value={currentPercentile}
+                  onChange={(e) => handleInputChange("percentile", e.target.value)}
+                >
+                  <option value="70">70%</option>
+                  <option value="75">75%</option>
+                  <option value="80">80%</option>
+                  <option value="85">85%</option>
+                  <option value="90">90%</option>
+                  <option value="95">95%</option>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="method">Analysis Method</Label>
+                <Select
+                  value={currentMethod}
+                  onChange={(e) => handleInputChange("method", e.target.value)}
+                >
+                  <option value="median">Median</option>
+                  <option value="mean">Mean</option>
+                </Select>
+              </div>
+            </div>
+          </div>
+
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-4">
               <p className="text-red-600">Error: {error}</p>
+            </div>
+          )}
+
+          {/* Percentile Analysis Results */}
+          {mergedData.percentile && (
+            <div className="space-y-6 mb-8">
+              <h3 className="text-xl font-semibold">Percentile Analysis Results</h3>
+              <div className="grid gap-4">
+                {Object.entries(mergedData.percentile).map(([zone, zoneData]: [string, any]) => (
+                  <div key={zone} className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-lg mb-4">USPS {zone.replace('_', ' ')}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
+                      {Object.entries(zoneData).filter(([k]) => k !== 'winner').map(([service, stats]: [string, any]) => (
+                        <div key={service} className="bg-white p-4 rounded-lg border shadow-sm">
+                          <div className="font-semibold text-sm text-gray-900 mb-1">{service}</div>
+                          <div className="text-lg font-bold text-blue-600 mb-1">
+                            {stats.metric_value?.toFixed(2)} days
+                          </div>
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <div>Coverage: {stats.percentile_coverage?.toFixed(1)}%</div>
+                            <div>Samples: {stats.records_in_percentile?.toLocaleString()}</div>
+                            <div>{currentPercentile}th %ile: {stats.percentile_threshold?.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {zoneData.winner && (
+                      <div className="p-4 bg-green-100 border border-green-300 rounded-lg">
+                        <span className="font-bold text-green-800 text-lg">
+                          🏆 Optimal: {zoneData.winner.service_level}
+                        </span>
+                        <span className="text-green-700 text-sm ml-2">
+                          ({zoneData.winner.metric_value?.toFixed(2)} days {currentMethod})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

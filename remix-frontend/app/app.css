@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+:root {
+  --color-primary: oklch(54.6% 0.245 262.881); /* blue-600 */
+  --color-primary-foreground: #fff;
+}
+
+.bg-primary {
+  background-color: var(--color-primary);
+}
+
+.bg-primary\/90 {
+  background-color: oklch(54.6% 0.245 262.881 / 0.9);
+}
+
+.hover\:bg-primary\/90:hover {
+  background-color: oklch(54.6% 0.245 262.881 / 0.9);
+}
+
+.text-primary-foreground {
+  color: var(--color-primary-foreground);
+}
