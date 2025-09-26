@@ -1,11 +1,12 @@
 import { useOutletContext, useSearchParams } from "react-router";
 import type { LoaderFunction } from "react-router";
 import { useLoaderData, useNavigate } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Select } from "~/components/ui/select";
 import { Label } from "~/components/ui/label";
+import { BlocksSpinner } from "~/components/ui/elite-spinner";
 
 const SERVICE_LEVELS = ['OVERNIGHT', 'EXPRESS', 'PRIORITY', 'STANDARD', 'ECONOMY'];
 const ZONES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -53,11 +54,17 @@ export default function AnalyticsDistributions() {
   const loaderData = useLoaderData<any>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [isDistributionLoading, setIsDistributionLoading] = useState(false);
 
   // Get current values from URL params or defaults
   const currentServiceLevel = searchParams.get("service_level") || "EXPRESS";
   const currentZone = searchParams.get("zone") || "5";
   const currentMetric = searchParams.get("metric") || "transit_time_days";
+
+  // Reset loading state when data changes
+  useEffect(() => {
+    setIsDistributionLoading(false);
+  }, [loaderData]);
 
   // Merge context data with loader data
   const mergedData = { ...data, ...loaderData?.data };
@@ -65,6 +72,7 @@ export default function AnalyticsDistributions() {
   const histogram = mergedData.histogram || loaderData?.data?.histogram;
 
   const handleInputChange = (field: string, value: string) => {
+    setIsDistributionLoading(true);
     const newParams = new URLSearchParams(searchParams);
     newParams.set(field, value);
     navigate(`/analytics/distributions?${newParams.toString()}`, { replace: true });
@@ -74,7 +82,16 @@ export default function AnalyticsDistributions() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Transit Time Distribution Analysis</CardTitle>
+          <CardTitle className="flex items-center gap-3">
+            Transit Time Distribution Analysis
+            <div className={`transition-all duration-300 ease-in-out transform ${
+              isDistributionLoading
+                ? 'opacity-100 scale-100 translate-x-0'
+                : 'opacity-0 scale-95 -translate-x-2 pointer-events-none'
+            }`}>
+              <BlocksSpinner size={16} />
+            </div>
+          </CardTitle>
           <CardDescription>
             View histogram distributions for specific service levels and zones
           </CardDescription>
@@ -153,12 +170,12 @@ export default function AnalyticsDistributions() {
           )}
 
           {/* Debug info */}
-          <div className="mt-4 p-2 bg-gray-100 text-xs">
+          {/* <div className="mt-4 p-2 bg-gray-100 text-xs">
             <details>
               <summary>Debug Data</summary>
               <pre>{JSON.stringify({ loaderData, mergedData, histogram }, null, 2)}</pre>
             </details>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

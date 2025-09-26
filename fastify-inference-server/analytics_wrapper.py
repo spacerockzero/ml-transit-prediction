@@ -30,6 +30,16 @@ def handle_request(request_type, data=None):
             return analyzer.get_carrier_service_summary()
         elif request_type == "carrier_zone_summary":
             return analyzer.get_carrier_zone_summary()
+        elif request_type == "carrier_zone_summary_percentile":
+            try:
+                percentile = float(sys.argv[2]) if len(sys.argv) > 2 else 50.0
+                method = sys.argv[3] if len(sys.argv) > 3 else "median"
+                result = analyzer.get_carrier_zone_summary_percentile(
+                    percentile, method
+                )
+                return result
+            except Exception as e:
+                raise
         elif request_type == "temporal_patterns":
             return advanced_analyzer.temporal_patterns()
         elif request_type == "geographic_intelligence":

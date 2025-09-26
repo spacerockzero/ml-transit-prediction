@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
+import { DashboardLayout } from "~/components/DashboardLayout";
 
 export const meta = () => {
   return [
@@ -131,18 +132,14 @@ export default function AnalyticsLayout() {
     (location.pathname === "/analytics" && tab.id === "overview")) || tabs[0];
 
   return (
-    <div className="px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Transit Time Analytics</h1>
-        <p className="text-muted-foreground mt-2">
-          Analyze shipping performance and optimize service level selection for different zones.
-        </p>
-      </div>
-
+    <DashboardLayout
+      title="Analytics"
+      subtitle="Analyze shipping performance and optimize service level selection"
+    >
       {error && (
-        <Card className="mb-6 border-destructive bg-destructive/10">
+        <Card className="card mb-6 border-red-200 bg-red-50">
           <CardContent className="pt-6">
-            <p className="text-destructive">Error: {error}</p>
+            <p className="text-red-600">Error: {error}</p>
           </CardContent>
         </Card>
       )}
@@ -167,6 +164,6 @@ export default function AnalyticsLayout() {
 
       {/* Pass data to child routes */}
       <Outlet context={{ data, formData, setFormData, isLoading }} />
-    </div>
+    </DashboardLayout>
   );
 }

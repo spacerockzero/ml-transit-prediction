@@ -28,3 +28,4 @@ yarn-error.log*
 yarn-debug.log*
 .pnpm-debug.log*
 pnpm-debug.log*
+.DS_Store

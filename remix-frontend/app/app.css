@@ -1,22 +1,428 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: oklch(54.6% 0.245 262.881); /* blue-600 */
-  --color-primary-foreground: #fff;
+  /* Ghost-inspired color palette */
+  --color-primary: #15171a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f9f9fa;
+  --color-secondary-foreground: #15171a;
+  --color-accent: #e6e9ec;
+  --color-accent-foreground: #15171a;
+  --color-muted: #f4f5f6;
+  --color-muted-foreground: #7c8b9a;
+  --color-background: #ffffff;
+  --color-foreground: #15171a;
+  --color-card: #ffffff;
+  --color-card-foreground: #15171a;
+  --color-border: #e6e9ec;
+  --color-input: #ffffff;
+  --color-ring: #15171a;
+  --color-success: #30cf43;
+  --color-warning: #ffc23d;
+  --color-error: #f50b23;
+  --color-sidebar: #15171a;
+  --color-sidebar-foreground: #ffffff;
+  --color-sidebar-muted: #30363d;
+  --color-sidebar-accent: #21262d;
+
+  /* Spacing and sizing */
+  --sidebar-width: 260px;
+  --header-height: 64px;
+
+  /* Typography */
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Base styles */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Utility classes */
 .bg-primary {
   background-color: var(--color-primary);
 }
 
 .bg-primary\/90 {
-  background-color: oklch(54.6% 0.245 262.881 / 0.9);
+  background-color: rgba(21, 23, 26, 0.9);
 }
 
 .hover\:bg-primary\/90:hover {
-  background-color: oklch(54.6% 0.245 262.881 / 0.9);
+  background-color: rgba(21, 23, 26, 0.9);
 }
 
 .text-primary-foreground {
   color: var(--color-primary-foreground);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary);
+}
+
+.text-secondary-foreground {
+  color: var(--color-secondary-foreground);
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
+}
+
+.text-accent-foreground {
+  color: var(--color-accent-foreground);
+}
+
+.bg-muted {
+  background-color: var(--color-muted);
+}
+
+.text-muted-foreground {
+  color: var(--color-muted-foreground);
+}
+
+.bg-background {
+  background-color: var(--color-background);
+}
+
+.text-foreground {
+  color: var(--color-foreground);
+}
+
+.bg-card {
+  background-color: var(--color-card);
+}
+
+.text-card-foreground {
+  color: var(--color-card-foreground);
+}
+
+.border-border {
+  border-color: var(--color-border);
+}
+
+.bg-sidebar {
+  background-color: var(--color-sidebar);
+}
+
+.text-sidebar-foreground {
+  color: var(--color-sidebar-foreground);
+}
+
+.bg-sidebar-muted {
+  background-color: var(--color-sidebar-muted);
+}
+
+.bg-sidebar-accent {
+  background-color: var(--color-sidebar-accent);
+}
+
+/* Ghost-style dashboard layout */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.dashboard-sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  border-right: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.dashboard-main {
+  flex: 1;
+  background-color: var(--color-muted);
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  /* height: var(--header-height); */
+  background-color: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+}
+
+.dashboard-header > div {
+  padding: 12px 0;
+}
+
+.dashboard-content {
+  padding: 32px;
+  max-width: 1200px;
+}
+
+/* Card styles */
+.card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: rgb(from var(--color-primary) r g b / 0.9);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-accent);
+}
+
+/* Prediction animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.skeleton-exit {
+  animation: fadeOutRight 0.25s ease-out forwards;
+}
+
+.predictions-exit {
+  animation: fadeOutRight 0.25s ease-out forwards;
+}
+
+.skeleton-enter {
+  animation: fadeInLeft 0.25s ease-out forwards;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.prediction-card {
+  animation: fadeInUp 0.25s ease-out;
+  transition: all 0.15s ease-in-out;
+}
+
+.prediction-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.prediction-value {
+  animation: slideInFromRight 0.2s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+
+/* Loading skeleton pulse */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Carrier brand colors */
+.carrier-usps {
+  border-left: 4px solid #004c92;
+}
+
+.carrier-usps .carrier-name {
+  color: #004c92;
+}
+
+.carrier-usps .carrier-badge {
+  background-color: #e6f2ff;
+  color: #004c92;
+  border: 1px solid #b3d9ff;
+}
+
+.carrier-ups {
+  border-left: 4px solid #8b4513;
+}
+
+.carrier-ups .carrier-name {
+  color: #8b4513;
+}
+
+.carrier-ups .carrier-badge {
+  background-color: #f5e6d3;
+  color: #8b4513;
+  border: 1px solid #d4b896;
+}
+
+.carrier-fedex {
+  border-left: 4px solid #4d148c;
+}
+
+.carrier-fedex .carrier-name {
+  color: #4d148c;
+}
+
+.carrier-fedex .carrier-badge {
+  background-color: #f0e6ff;
+  color: #4d148c;
+  border: 1px solid #c299ff;
+}
+
+/* Additional carrier brand colors */
+.carrier-dhl {
+  border-left: 4px solid #dc2626;
+}
+
+.carrier-dhl .carrier-name {
+  color: #dc2626;
+}
+
+.carrier-dhl .carrier-badge {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.carrier-amazon {
+  border-left: 4px solid #f97316;
+}
+
+.carrier-amazon .carrier-name {
+  color: #f97316;
+}
+
+.carrier-amazon .carrier-badge {
+  background-color: #fff7ed;
+  color: #f97316;
+  border: 1px solid #fdba74;
+}
+
+.carrier-ontrac {
+  border-left: 4px solid #059669;
+}
+
+.carrier-ontrac .carrier-name {
+  color: #059669;
+}
+
+.carrier-ontrac .carrier-badge {
+  background-color: #f0fdf4;
+  color: #059669;
+  border: 1px solid #86efac;
+}
+
+.carrier-lasership {
+  border-left: 4px solid #ec4899;
+}
+
+.carrier-lasership .carrier-name {
+  color: #ec4899;
+}
+
+.carrier-lasership .carrier-badge {
+  background-color: #fdf2f8;
+  color: #ec4899;
+  border: 1px solid #f9a8d4;
+}
+
+.carrier-regional {
+  border-left: 4px solid #6366f1;
+}
+
+.carrier-regional .carrier-name {
+  color: #6366f1;
+}
+
+.carrier-regional .carrier-badge {
+  background-color: #eef2ff;
+  color: #6366f1;
+  border: 1px solid #a5b4fc;
+}
+
+.carrier-default {
+  border-left: 4px solid #6b7280;
+}
+
+.carrier-default .carrier-name {
+  color: #6b7280;
+}
+
+.carrier-default .carrier-badge {
+  background-color: #f9fafb;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
 }

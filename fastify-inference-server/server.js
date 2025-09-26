@@ -1,13 +1,121 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { PythonShell } from 'python-shell';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Analytics Cache System
+class AnalyticsCache {
+  constructor() {
+    this.cache = new Map();
+    this.cacheTimestamps = new Map();
+    this.dataFileHashes = new Map();
+    this.defaultTTL = 1000 * 60 * 30; // 30 minutes default TTL
+    this.staticEndpointTTL = 1000 * 60 * 60 * 2; // 2 hours for static data
+  }
+
+  // Generate cache key for request
+  generateCacheKey(requestType, params = {}) {
+    // Handle both object params and array params
+    const normalizedParams = Array.isArray(params) ? params : [params];
+    const keyData = { requestType, params: normalizedParams };
+    return crypto.createHash('md5').update(JSON.stringify(keyData)).digest('hex');
+  }
+
+  // Get file hash for invalidation detection
+  getFileHash(filePath) {
+    try {
+      if (!existsSync(filePath)) return null;
+      const stats = statSync(filePath);
+      const content = readFileSync(filePath);
+      return crypto.createHash('md5').update(content + stats.mtime.toISOString()).digest('hex');
+    } catch (error) {
+      console.error(`Error hashing file ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  // Check if data files have been updated
+  hasDataFilesChanged() {
+    const dataFiles = [
+      path.join(__dirname, '..', 'statistical_analysis', 'statistical_shipping_data.csv'),
+      path.join(__dirname, '..', 'statistical_analysis', 'statistical_shipping_data.parquet'),
+      path.join(__dirname, '..', 'transit_time', 'historical_shipments.csv'),
+      path.join(__dirname, '..', 'transit_time_cost', 'historical_shipments.csv'),
+      path.join(__dirname, '..', 'transit_time_zones', 'historical_shipments.csv'),
+    ];
+
+    for (const filePath of dataFiles) {
+      const currentHash = this.getFileHash(filePath);
+      const cachedHash = this.dataFileHashes.get(filePath);
+
+      if (currentHash && currentHash !== cachedHash) {
+        this.dataFileHashes.set(filePath, currentHash);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Get TTL based on request type
+  getTTL(requestType) {
+    // Static endpoints that rarely change
+    if (['summary', 'carrier_summary', 'carrier_zone_summary'].includes(requestType)) {
+      return this.staticEndpointTTL;
+    }
+    // Dynamic endpoints with parameters
+    return this.defaultTTL;
+  }
+
+  // Set cache entry
+  set(key, value, requestType) {
+    const ttl = this.getTTL(requestType);
+    this.cache.set(key, value);
+    this.cacheTimestamps.set(key, Date.now() + ttl);
+  }
+
+  // Get cache entry
+  get(key) {
+    const timestamp = this.cacheTimestamps.get(key);
+    if (!timestamp || Date.now() > timestamp) {
+      this.cache.delete(key);
+      this.cacheTimestamps.delete(key);
+      return null;
+    }
+    return this.cache.get(key);
+  }
+
+  // Clear all cache
+  clear() {
+    this.cache.clear();
+    this.cacheTimestamps.clear();
+    console.log('Analytics cache cleared due to data file changes');
+  }
+
+  // Initialize data file hashes
+  initializeHashes() {
+    console.log('Initializing analytics cache with current data file hashes...');
+    this.hasDataFilesChanged(); // This will set initial hashes
+  }
+
+  // Get cache stats
+  getStats() {
+    return {
+      size: this.cache.size,
+      entries: Array.from(this.cache.keys()),
+      dataFileHashes: Object.fromEntries(this.dataFileHashes)
+    };
+  }
+}
+
+// Initialize cache
+const analyticsCache = new AnalyticsCache();
 
 // Initialize Fastify
 const fastify = Fastify({
@@ -37,6 +145,109 @@ try {
   process.exit(1);
 }
 
+// Response time tracking
+class ResponseTimeTracker {
+  constructor(maxEntries = 1000) {
+    this.responseTimes = [];
+    this.maxEntries = maxEntries;
+    this.totalRequests = 0;
+  }
+
+  addResponseTime(timeMs) {
+    this.responseTimes.push(timeMs);
+    this.totalRequests++;
+
+    // Keep only the most recent entries to prevent memory issues
+    if (this.responseTimes.length > this.maxEntries) {
+      this.responseTimes = this.responseTimes.slice(-this.maxEntries);
+    }
+  }
+
+  getStats() {
+    if (this.responseTimes.length === 0) {
+      return {
+        averageMs: 0,
+        medianMs: 0,
+        minMs: 0,
+        maxMs: 0,
+        totalRequests: this.totalRequests,
+        recentSamples: 0
+      };
+    }
+
+    const sorted = [...this.responseTimes].sort((a, b) => a - b);
+    const sum = this.responseTimes.reduce((acc, time) => acc + time, 0);
+
+    return {
+      averageMs: Math.round(sum / this.responseTimes.length),
+      medianMs: Math.round(sorted[Math.floor(sorted.length / 2)]),
+      minMs: Math.round(Math.min(...this.responseTimes)),
+      maxMs: Math.round(Math.max(...this.responseTimes)),
+      totalRequests: this.totalRequests,
+      recentSamples: this.responseTimes.length
+    };
+  }
+}
+
+const responseTracker = new ResponseTimeTracker();
+
+// Daily prediction tracking
+class DailyPredictionTracker {
+  constructor() {
+    this.dailyStats = new Map(); // Map<date, count>
+    this.totalPredictions = 0;
+  }
+
+  addPrediction() {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    this.totalPredictions++;
+
+    if (this.dailyStats.has(today)) {
+      this.dailyStats.set(today, this.dailyStats.get(today) + 1);
+    } else {
+      this.dailyStats.set(today, 1);
+    }
+
+    // Clean up old entries (keep only last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+
+    for (const [date] of this.dailyStats) {
+      if (date < cutoffDate) {
+        this.dailyStats.delete(date);
+      }
+    }
+  }
+
+  getTodayCount() {
+    const today = new Date().toISOString().split('T')[0];
+    return this.dailyStats.get(today) || 0;
+  }
+
+  getStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayCount = this.getTodayCount();
+
+    // Calculate some additional metrics
+    const dailyCounts = Array.from(this.dailyStats.values());
+    const avgDaily = dailyCounts.length > 0
+      ? Math.round(dailyCounts.reduce((sum, count) => sum + count, 0) / dailyCounts.length)
+      : 0;
+
+    return {
+      today: todayCount,
+      total: this.totalPredictions,
+      averageDaily: avgDaily,
+      activeDays: this.dailyStats.size,
+      date: today
+    };
+  }
+}
+
+const predictionTracker = new DailyPredictionTracker();
+
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {
   return {
@@ -47,6 +258,73 @@ fastify.get('/health', async (request, reply) => {
       shipping_cost: modelMetadata.shipping_cost_model.model_name
     }
   };
+});
+
+// Response time stats endpoint
+fastify.get('/stats/response-times', async (request, reply) => {
+  return {
+    success: true,
+    data: responseTracker.getStats(),
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Daily predictions stats endpoint
+fastify.get('/stats/predictions', async (request, reply) => {
+  return {
+    success: true,
+    data: predictionTracker.getStats(),
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Training metadata endpoint
+fastify.get('/stats/training', async (request, reply) => {
+  try {
+    const trainingMetadataPath = path.join(__dirname, '..', 'training_metadata.json');
+
+    if (existsSync(trainingMetadataPath)) {
+      const trainingData = JSON.parse(readFileSync(trainingMetadataPath, 'utf8'));
+      return {
+        success: true,
+        data: trainingData,
+        timestamp: new Date().toISOString()
+      };
+    } else {
+      // Return default metadata if file doesn't exist
+      return {
+        success: true,
+        data: {
+          last_updated: "2024-01-01T00:00:00Z",
+          training_data: {
+            total_shipments: 0,
+            date_range: { start: "2023-01-01", end: "2024-12-31" },
+            carriers: [],
+            service_levels: [],
+            zones_covered: []
+          },
+          model_info: {
+            version: "1.0.0",
+            training_duration_minutes: 0,
+            features_count: 17,
+            validation_accuracy: {
+              transit_time_mae: 0.0,
+              shipping_cost_mae: 0.0
+            }
+          },
+          data_sources: []
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  } catch (error) {
+    reply.code(500);
+    return {
+      success: false,
+      error: `Failed to load training metadata: ${error.message}`,
+      timestamp: new Date().toISOString()
+    };
+  }
 });
 
 // Model info endpoint
@@ -251,11 +529,18 @@ fastify.post('/predict', {
     const processingTime = Date.now() - startTime;
 
     if (result.success) {
+      // Track successful response time and prediction count
+      responseTracker.addResponseTime(processingTime);
+      predictionTracker.addPrediction();
+
       return {
         ...result,
         processing_time_ms: processingTime
       };
     } else {
+      // Still track response time for failed predictions, but not prediction count
+      responseTracker.addResponseTime(processingTime);
+
       reply.code(400);
       return {
         success: false,
@@ -269,6 +554,9 @@ fastify.post('/predict', {
     console.error('Predict endpoint error:', error);
     console.error('Error stack:', error.stack);
     console.error('Input that caused error:', request.body);
+
+    // Track response time even for errors
+    responseTracker.addResponseTime(processingTime);
 
     reply.code(500);
     return {
@@ -289,28 +577,41 @@ fastify.post('/predict/transit-time', {
     body: predictionInputSchema
   }
 }, async (request, reply) => {
+  const startTime = Date.now();
+
   try {
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     const result = await callPythonInference(input);
 
+    const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
+
     if (result.success) {
+      predictionTracker.addPrediction();
+
       return {
         success: true,
         transit_time_days: result.predictions.transit_time_days,
-        input: result.input
+        input: result.input,
+        processing_time_ms: processingTime
       };
     } else {
       reply.code(400);
       return {
         success: false,
-        error: result.error
+        error: result.error,
+        processing_time_ms: processingTime
       };
     }
   } catch (error) {
+    const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
+
     reply.code(500);
     return {
       success: false,
-      error: `Inference failed: ${error.message}`
+      error: `Inference failed: ${error.message}`,
+      processing_time_ms: processingTime
     };
   }
 });
@@ -321,28 +622,41 @@ fastify.post('/predict/shipping-cost', {
     body: predictionInputSchema
   }
 }, async (request, reply) => {
+  const startTime = Date.now();
+
   try {
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     const result = await callPythonInference(input);
 
+    const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
+
     if (result.success) {
+      predictionTracker.addPrediction();
+
       return {
         success: true,
         shipping_cost_usd: result.predictions.shipping_cost_usd,
-        input: result.input
+        input: result.input,
+        processing_time_ms: processingTime
       };
     } else {
       reply.code(400);
       return {
         success: false,
-        error: result.error
+        error: result.error,
+        processing_time_ms: processingTime
       };
     }
   } catch (error) {
+    const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
+
     reply.code(500);
     return {
       success: false,
-      error: `Inference failed: ${error.message}`
+      error: `Inference failed: ${error.message}`,
+      processing_time_ms: processingTime
     };
   }
 });
@@ -372,15 +686,24 @@ fastify.post('/predict/batch', {
     const results = await Promise.all(promises);
 
     const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
+
+    // Count successful predictions for daily tracking
+    const successfulPredictions = results.filter(result => result.success).length;
+    for (let i = 0; i < successfulPredictions; i++) {
+      predictionTracker.addPrediction();
+    }
 
     return {
       success: true,
       count: results.length,
+      successfulCount: successfulPredictions,
       results: results,
       processing_time_ms: processingTime
     };
   } catch (error) {
     const processingTime = Date.now() - startTime;
+    responseTracker.addResponseTime(processingTime);
 
     reply.code(500);
     return {
@@ -434,32 +757,67 @@ fastify.setErrorHandler((error, request, reply) => {
 });
 
 // Analytics endpoints
-async function callAnalyticsWrapper(requestType, params = {}) {
+async function callAnalyticsWrapper(requestType, ...params) {
+  // Check if data files have changed and clear cache if needed
+  if (analyticsCache.hasDataFilesChanged()) {
+    analyticsCache.clear();
+  }
+
+  // Generate cache key
+  const cacheKey = analyticsCache.generateCacheKey(requestType, params);
+
+  console.log(`🔍 Cache lookup: ${requestType}`, {
+    params,
+    cacheKey: cacheKey.substring(0, 8) + '...'
+  });
+
+  // Try to get from cache first
+  const cachedResult = analyticsCache.get(cacheKey);
+  if (cachedResult) {
+    console.log(`✅ Cache HIT for ${requestType}`);
+    return cachedResult;
+  }
+
+  console.log(`❌ Cache MISS for ${requestType}`);
+
+  // Use spawn with uv for better performance than PythonShell
   return new Promise((resolve, reject) => {
-    const options = {
-      mode: 'text',
-      pythonPath: path.join(__dirname, '..', '.venv', 'bin', 'python'),
-      scriptPath: __dirname,
-      args: [requestType, JSON.stringify(params)]
-    };
+    const args = [requestType, ...params.map(p => typeof p === 'object' ? JSON.stringify(p) : String(p))];
 
-    const pyshell = new PythonShell('analytics_wrapper.py', options);
-    let output = '';
-
-    pyshell.on('message', function (message) {
-      output += message;
+    const pythonProcess = spawn('uv', ['run', 'python', 'analytics_wrapper.py', ...args], {
+      cwd: __dirname,
+      stdio: ['pipe', 'pipe', 'pipe']
     });
 
-    pyshell.end(function (err, code, signal) {
-      if (err) {
-        reject(err);
+    let output = '';
+    let errorOutput = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Python process exited with code ${code}. Error: ${errorOutput}`));
       } else {
         try {
-          resolve(JSON.parse(output));
+          const result = JSON.parse(output);
+          // Cache the successful result
+          analyticsCache.set(cacheKey, result, requestType);
+          console.log(`💾 Cached result for ${requestType} (key: ${cacheKey.substring(0, 8)}...)`);
+          resolve(result);
         } catch (parseErr) {
-          reject(new Error(`Failed to parse analytics output: ${parseErr.message}`));
+          reject(new Error(`Failed to parse analytics output: ${parseErr.message}. Raw output: ${output}`));
         }
       }
+    });
+
+    pythonProcess.on('error', (error) => {
+      reject(new Error(`Failed to start Python process: ${error.message}`));
     });
   });
 }
@@ -490,6 +848,29 @@ fastify.get('/analytics/carrier-summary', async (request, reply) => {
 fastify.get('/analytics/carrier-zone-summary', async (request, reply) => {
   try {
     const result = await callAnalyticsWrapper('carrier_zone_summary');
+    return result;
+  } catch (error) {
+    fastify.log.error(error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get percentile-filtered carrier-zone-service summary statistics
+fastify.get('/analytics/carrier-zone-summary-percentile', {
+  schema: {
+    querystring: {
+      type: 'object',
+      properties: {
+        percentile: { type: 'number', default: 50 },
+        method: { type: 'string', default: 'median' }
+      }
+    }
+  }
+}, async (request, reply) => {
+  try {
+    const percentile = request.query.percentile || 50;
+    const method = request.query.method || 'median';
+    const result = await callAnalyticsWrapper('carrier_zone_summary_percentile', percentile, method);
     return result;
   } catch (error) {
     fastify.log.error(error);
@@ -718,8 +1099,94 @@ fastify.get('/analytics/comprehensive-report', async (request, reply) => {
   }
 });
 
+// Cache management endpoints
+fastify.get('/cache/stats', async (request, reply) => {
+  return {
+    success: true,
+    data: analyticsCache.getStats()
+  };
+});
+
+// Alternative endpoint for backward compatibility
+fastify.get('/analytics/cache-stats', async (request, reply) => {
+  return {
+    success: true,
+    data: analyticsCache.getStats()
+  };
+});
+
+fastify.post('/cache/clear', async (request, reply) => {
+  analyticsCache.clear();
+  return {
+    success: true,
+    message: 'Analytics cache cleared successfully'
+  };
+});
+
+fastify.post('/cache/refresh', async (request, reply) => {
+  try {
+    analyticsCache.clear();
+    await preWarmCache();
+    return {
+      success: true,
+      message: 'Cache refreshed successfully',
+      stats: analyticsCache.getStats()
+    };
+  } catch (error) {
+    fastify.log.error('Error refreshing cache:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// Pre-warm cache with frequently used endpoints
+async function preWarmCache() {
+  console.log('🔄 Pre-warming analytics cache...');
+
+  const preWarmTasks = [
+    // Static endpoints
+    () => callAnalyticsWrapper('summary'),
+    () => callAnalyticsWrapper('carrier_summary'),
+    () => callAnalyticsWrapper('carrier_zone_summary'),
+
+    // Common percentile queries
+    () => callAnalyticsWrapper('carrier_zone_summary_percentile', 50, 'median'),
+    () => callAnalyticsWrapper('carrier_zone_summary_percentile', 80, 'median'),
+    () => callAnalyticsWrapper('carrier_zone_summary_percentile', 90, 'median'),
+    () => callAnalyticsWrapper('percentile_analysis', { percentile: 50, method: 'median', service_level: 'EXPRESS', zone: 5 }),
+    () => callAnalyticsWrapper('percentile_analysis', { percentile: 80, method: 'median', service_level: 'EXPRESS', zone: 5 }),
+
+    // Common histogram queries for distributions page
+    () => callAnalyticsWrapper('histogram', { service_level: 'EXPRESS', zone: 5, metric: 'transit_time_days', bins: 30 }),
+    () => callAnalyticsWrapper('histogram', { service_level: 'EXPRESS', zone: 5, metric: 'shipping_cost_usd', bins: 30 }),
+    () => callAnalyticsWrapper('histogram', { service_level: 'OVERNIGHT', zone: 5, metric: 'transit_time_days', bins: 30 }),
+    () => callAnalyticsWrapper('histogram', { service_level: 'STANDARD', zone: 3, metric: 'transit_time_days', bins: 30 }),
+    () => callAnalyticsWrapper('histogram', { service_level: 'PRIORITY', zone: 7, metric: 'transit_time_days', bins: 30 }),
+  ];
+
+  let successCount = 0;
+  const total = preWarmTasks.length;
+
+  for (const task of preWarmTasks) {
+    try {
+      await task();
+      successCount++;
+    } catch (error) {
+      console.warn('Pre-warm task failed:', error.message);
+    }
+  }
+
+  console.log(`✅ Cache pre-warming completed: ${successCount}/${total} tasks successful`);
+  console.log(`📊 Cache stats:`, analyticsCache.getStats());
+}
+
 const start = async () => {
   try {
+    // Initialize cache and check for data file changes
+    analyticsCache.initializeHashes();
+
     const port = process.env.PORT || 3000;
     const host = process.env.HOST || '0.0.0.0';
 
@@ -742,9 +1209,20 @@ const start = async () => {
     console.log('  GET  /analytics/compare-carriers - Carrier comparison by zone');
     console.log('  GET  /analytics/percentile      - Percentile-based analysis');
     console.log('  GET  /analytics/histogram       - Histogram data for charts');
+    console.log('\\n🗄️  Cache management:');
+    console.log('  GET  /cache/stats               - Cache statistics');
+    console.log('  POST /cache/clear               - Clear cache');
+    console.log('  POST /cache/refresh             - Refresh and pre-warm cache');
     console.log('\\n🎯 Model info (using transit_time_cost models):');
     console.log(`  Transit Time Component: ${modelMetadata.transit_time_model.features} features`);
     console.log(`  Shipping Cost Component: ${modelMetadata.shipping_cost_model.features} features`);
+
+    // Pre-warm cache in the background
+    setImmediate(() => {
+      preWarmCache().catch(error => {
+        console.warn('Cache pre-warming failed:', error.message);
+      });
+    });
 
   } catch (err) {
     fastify.log.error(err);

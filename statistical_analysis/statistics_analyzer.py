@@ -591,6 +591,72 @@ class ShippingStatisticsAnalyzer:
 
         return summary
 
+    def get_carrier_zone_summary_percentile(
+        self, percentile: float, method: str = "median"
+    ) -> Dict:
+        """Get summary statistics for all carriers, service levels, and zones within a percentile threshold."""
+        summary = {}
+
+        # Get unique carriers and zones
+        carriers = self.df["carrier"].unique()
+        zones = sorted(self.df["dest_zone"].unique())
+
+        for carrier in carriers:
+            for service in self.metadata["service_levels"]:
+                for zone in zones:
+                    service_data = self.df[
+                        (self.df["carrier"] == carrier)
+                        & (self.df["service_level"] == service)
+                        & (self.df["dest_zone"] == zone)
+                    ]
+
+                    if len(service_data) > 0:
+                        # Apply percentile filtering
+                        transit_data = service_data["transit_time_days"]
+                        cost_data = service_data["shipping_cost_usd"]
+
+                        # Get percentile threshold for transit time
+                        threshold_value = transit_data.quantile(percentile / 100)
+
+                        # Filter data within percentile threshold
+                        filtered_indices = transit_data <= threshold_value
+                        filtered_transit_data = transit_data[filtered_indices]
+                        filtered_cost_data = cost_data[filtered_indices]
+
+                        if len(filtered_transit_data) > 0:
+                            key = f"{carrier}_{service}_zone_{zone}"
+
+                            # Calculate metrics using the specified method
+                            if method == "median":
+                                transit_metric = float(filtered_transit_data.median())
+                                cost_metric = float(filtered_cost_data.median())
+                            else:  # mean
+                                transit_metric = float(filtered_transit_data.mean())
+                                cost_metric = float(filtered_cost_data.mean())
+
+                            summary[key] = {
+                                "carrier": carrier,
+                                "service_level": service,
+                                "zone": int(zone),
+                                "total_shipments": int(len(service_data)),
+                                "records_in_percentile": int(
+                                    len(filtered_transit_data)
+                                ),
+                                "percentile_coverage": float(
+                                    len(filtered_transit_data) / len(service_data) * 100
+                                ),
+                                "percentile_threshold": float(threshold_value),
+                                "method": method,
+                                "avg_transit_time": transit_metric,
+                                "median_transit_time": transit_metric,  # Using the same value for consistency
+                                "avg_cost": cost_metric,
+                                "median_cost": cost_metric,  # Using the same value for consistency
+                                "transit_time_std": float(filtered_transit_data.std()),
+                                "cost_std": float(filtered_cost_data.std()),
+                            }
+
+        return summary
+
 
 def main():
     """CLI interface for the statistical analyzer."""

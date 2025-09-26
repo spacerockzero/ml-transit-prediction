@@ -34,10 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <Navigation />
-        <main className="container mx-auto">
-          {children}
-        </main>
+        {children}
         <ScrollRestoration />
         <Scripts />
       </body>
