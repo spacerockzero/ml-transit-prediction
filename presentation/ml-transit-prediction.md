@@ -97,10 +97,9 @@ I've been building Machine Learning & other AI software for over 5 years, other 
 
 **73% more accurate predictions using ML**
 
-| Metric   | Traditional | ML-Based       | Improvement    |
-| -------- | ----------- | -------------- | -------------- |
-| Accuracy | ±2.5 days   | ±0.68 days     | **73% better** |
-| Speed    | Slow        | <50ms (cached) | Real-time      |
+| Metric   | Traditional | ML-Based   | Improvement    |
+| -------- | ----------- | ---------- | -------------- |
+| Accuracy | ±2.5 days   | ±0.68 days | **73% better** |
 
 **How it works:**
 Historical Data → Feature Engineering → LightGBM → Predictions
@@ -131,7 +130,7 @@ Historical Data → Feature Engineering → LightGBM → Predictions
 
 ## 🚀 Increases Productivity
 
-**Before:** Trusting the inaccurate carrier estimates, using carrier-provided charts that don't accommodate for seasons, weekends, zones
+**Before:** Carrier estimates, often missing during label purchase, or don't always accommodate for seasons, weekends, zones
 **After:** Data-driven predictions for better carrier comparison
 
 **Benefits:**
@@ -214,7 +213,7 @@ Historical Data → Feature Engineering → LightGBM → Predictions
 ## Next Steps
 
 **Current System:**
-✅ Trained models with 73% better accuracy than carrier charts
+✅ Trained models with 73% better accuracy than carrier prediction
 ✅ REST API
 ✅ Analytics dashboard deployed
 
@@ -225,4 +224,4 @@ Historical Data → Feature Engineering → LightGBM → Predictions
 3. Measure ROI on real shipments
 4. Scale across operations
 
-**Questions?**
+**Demo/Questions?**
