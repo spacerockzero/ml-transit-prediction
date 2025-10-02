@@ -1,7 +1,7 @@
 {
-  "last_updated": "2025-09-26T01:20:35.831614Z",
+  "last_updated": "2025-10-01T16:55:53.364044Z",
   "training_data": {
-    "total_shipments": 28939,
+    "total_shipments": 50000,
     "date_range": {
       "start": "2023-01-01",
       "end": "2024-12-31"
@@ -12,37 +12,40 @@
       "FedEx",
       "LaserShip",
       "OnTrac",
-      "Regional_Express",
       "UPS",
       "USPS"
     ],
     "service_levels": [
-      "Express",
-      "Ground",
-      "Overnight",
-      "Priority"
+      "ECONOMY",
+      "EXPRESS",
+      "OVERNIGHT",
+      "PRIORITY",
+      "STANDARD"
     ],
     "zones_covered": [
+      1,
       2,
+      3,
       4,
       5,
       6,
       7,
-      8
+      8,
+      9
     ]
   },
   "model_info": {
-    "version": "1.2.0",
-    "training_duration_minutes": 3.7,
+    "version": "1.3.0",
+    "training_duration_minutes": 1.57,
     "features_count": 13,
     "validation_accuracy": {
-      "transit_time_mae": 0.82,
-      "shipping_cost_mae": 2.95
+      "transit_time_mae": 0.85,
+      "shipping_cost_mae": 3.2
     }
   },
   "data_sources": [
-    "transit_time_cost/historical_shipments.csv",
     "statistical_analysis/statistical_shipping_data.parquet",
-    "transit_time_zones/historical_shipments.csv"
+    "transit_time_cost/historical_shipments.parquet",
+    "transit_time_zones/historical_shipments.parquet"
   ]
 }

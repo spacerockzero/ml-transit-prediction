@@ -20,10 +20,10 @@
   --color-success: #30cf43;
   --color-warning: #ffc23d;
   --color-error: #f50b23;
-  --color-sidebar: #15171a;
+  --color-sidebar: #324157;
   --color-sidebar-foreground: #ffffff;
   --color-sidebar-muted: #30363d;
-  --color-sidebar-accent: #21262d;
+  --color-sidebar-accent: #3f5066;
 
   /* Spacing and sizing */
   --sidebar-width: 260px;

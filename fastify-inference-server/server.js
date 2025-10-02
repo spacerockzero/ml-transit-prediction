@@ -114,8 +114,143 @@ class AnalyticsCache {
   }
 }
 
-// Initialize cache
+// Prediction Cache Class
+class PredictionCache {
+  constructor() {
+    this.cache = new Map();
+    this.cacheTimestamps = new Map();
+    this.modelFileHashes = new Map();
+    this.defaultTTL = 1000 * 60 * 60 * 24; // 24 hours for predictions (they don't change unless model updates)
+  }
+
+  // Generate cache key for prediction request
+  generateCacheKey(input) {
+    // Create a normalized version of the input for consistent hashing
+    const normalizedInput = {
+      ship_date: input.ship_date,
+      zone: input.zone,
+      carrier: input.carrier,
+      service_level: input.service_level,
+      package_weight_lbs: Number(input.package_weight_lbs),
+      package_length_in: Number(input.package_length_in),
+      package_width_in: Number(input.package_width_in),
+      package_height_in: Number(input.package_height_in),
+      insurance_value: Number(input.insurance_value)
+    };
+    return crypto.createHash('md5').update(JSON.stringify(normalizedInput)).digest('hex');
+  }
+
+  // Get file hash for model invalidation detection
+  getFileHash(filePath) {
+    try {
+      if (!existsSync(filePath)) return null;
+      const stats = statSync(filePath);
+      const content = readFileSync(filePath);
+      return crypto.createHash('md5').update(content + stats.mtime.toISOString()).digest('hex');
+    } catch (error) {
+      console.error(`Error hashing file ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  // Check if model files have been updated
+  hasModelFilesChanged() {
+    const modelFiles = [
+      // Transit time models
+      path.join(__dirname, '..', 'transit_time', 'lgb_transit_model.txt'),
+      path.join(__dirname, '..', 'transit_time', 'lgb_transit_quantile_10.txt'),
+      path.join(__dirname, '..', 'transit_time', 'lgb_transit_quantile_50.txt'),
+      path.join(__dirname, '..', 'transit_time', 'lgb_transit_quantile_90.txt'),
+      path.join(__dirname, '..', 'transit_time', 'feature_cols.joblib'),
+
+      // Transit time cost models
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_model.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_quantile_10.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_quantile_50.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_quantile_90.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_shipping_cost_model.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_shipping_cost_quantile_10.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_shipping_cost_quantile_50.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_shipping_cost_quantile_90.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_time_model.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_time_quantile_10.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_time_quantile_50.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'lgb_transit_time_quantile_90.txt'),
+      path.join(__dirname, '..', 'transit_time_cost', 'feature_cols.joblib'),
+      path.join(__dirname, '..', 'transit_time_cost', 'cost_feature_cols.joblib'),
+      path.join(__dirname, '..', 'transit_time_cost', 'time_feature_cols.joblib'),
+      path.join(__dirname, '..', 'transit_time_cost', 'target_encoding_priors.joblib'),
+      path.join(__dirname, '..', 'transit_time_cost', 'target_encodings_cost.joblib'),
+      path.join(__dirname, '..', 'transit_time_cost', 'target_encodings_time.joblib'),
+
+      // Transit time zones models
+      path.join(__dirname, '..', 'transit_time_zones', 'lgb_transit_model.txt'),
+      path.join(__dirname, '..', 'transit_time_zones', 'lgb_transit_quantile_10.txt'),
+      path.join(__dirname, '..', 'transit_time_zones', 'lgb_transit_quantile_50.txt'),
+      path.join(__dirname, '..', 'transit_time_zones', 'lgb_transit_quantile_90.txt'),
+      path.join(__dirname, '..', 'transit_time_zones', 'feature_cols.joblib'),
+    ];
+
+    let hasChanged = false;
+    for (const filePath of modelFiles) {
+      const currentHash = this.getFileHash(filePath);
+      const cachedHash = this.modelFileHashes.get(filePath);
+
+      if (currentHash && cachedHash && currentHash !== cachedHash) {
+        console.log(`Model file changed: ${filePath}`);
+        this.modelFileHashes.set(filePath, currentHash);
+        hasChanged = true;
+      } else if (currentHash && !cachedHash) {
+        // Initial setup - set hash but don't mark as changed
+        this.modelFileHashes.set(filePath, currentHash);
+      }
+    }
+    return hasChanged;
+  }
+
+  // Set cache entry
+  set(key, value) {
+    this.cache.set(key, value);
+    this.cacheTimestamps.set(key, Date.now() + this.defaultTTL);
+  }
+
+  // Get cache entry
+  get(key) {
+    const timestamp = this.cacheTimestamps.get(key);
+    if (!timestamp || Date.now() > timestamp) {
+      this.cache.delete(key);
+      this.cacheTimestamps.delete(key);
+      return null;
+    }
+    return this.cache.get(key);
+  }
+
+  // Clear all cache
+  clear() {
+    this.cache.clear();
+    this.cacheTimestamps.clear();
+    console.log('Prediction cache cleared due to model file changes');
+  }
+
+  // Initialize model file hashes
+  initializeHashes() {
+    console.log('Initializing prediction cache with current model file hashes...');
+    this.hasModelFilesChanged(); // This will set initial hashes
+  }
+
+  // Get cache stats
+  getStats() {
+    return {
+      size: this.cache.size,
+      entries: Array.from(this.cache.keys()),
+      modelFileHashes: Object.fromEntries(this.modelFileHashes)
+    };
+  }
+}
+
+// Initialize caches
 const analyticsCache = new AnalyticsCache();
+const predictionCache = new PredictionCache();
 
 // Initialize Fastify
 const fastify = Fastify({
@@ -518,34 +653,71 @@ fastify.post('/predict', {
   console.log('Predict endpoint called with body:', request.body);
 
   try {
+    // Check if model files have changed and invalidate cache if so
+    if (predictionCache.hasModelFilesChanged()) {
+      predictionCache.clear();
+    }
+
     // Map zone to origin_zone and dest_zone for now
     const input = { ...request.body, origin_zone: request.body.zone, dest_zone: request.body.zone };
     console.log('Mapped input:', input);
 
-    console.log('Calling Python inference...');
+    // Generate cache key from input parameters
+    const cacheKey = predictionCache.generateCacheKey(input);
+    console.log('Generated prediction cache key:', cacheKey);
+
+    // Check cache first
+    const cachedResult = predictionCache.get(cacheKey);
+    if (cachedResult) {
+      const processingTime = Date.now() - startTime;
+      console.log('✅ Prediction cache hit! Returning cached result');
+
+      // Track cache hit response time and prediction count
+      responseTracker.addResponseTime(processingTime);
+      predictionTracker.addPrediction();
+
+      return {
+        ...cachedResult,
+        processing_time_ms: processingTime,
+        cached: true
+      };
+    }
+
+    console.log('⏳ Prediction cache miss, calling Python inference...');
     const result = await callPythonInference(input);
     console.log('Python inference result:', result);
 
     const processingTime = Date.now() - startTime;
 
     if (result.success) {
+      // Cache the successful result (exclude processing_time_ms from cache)
+      const cacheableResult = {
+        success: result.success,
+        predictions: result.predictions,
+        input: result.input
+      };
+      predictionCache.set(cacheKey, cacheableResult);
+      console.log('💾 Cached prediction result for future requests');
+
       // Track successful response time and prediction count
       responseTracker.addResponseTime(processingTime);
       predictionTracker.addPrediction();
 
       return {
         ...result,
-        processing_time_ms: processingTime
+        processing_time_ms: processingTime,
+        cached: false
       };
     } else {
-      // Still track response time for failed predictions, but not prediction count
+      // Still track response time for failed predictions, but don't cache errors
       responseTracker.addResponseTime(processingTime);
 
       reply.code(400);
       return {
         success: false,
         error: result.error,
-        processing_time_ms: processingTime
+        processing_time_ms: processingTime,
+        cached: false
       };
     }
   } catch (error) {
@@ -566,7 +738,8 @@ fastify.post('/predict', {
       debug: {
         errorType: error.constructor.name,
         stack: error.stack
-      }
+      },
+      cached: false
     };
   }
 });
@@ -1103,7 +1276,10 @@ fastify.get('/analytics/comprehensive-report', async (request, reply) => {
 fastify.get('/cache/stats', async (request, reply) => {
   return {
     success: true,
-    data: analyticsCache.getStats()
+    data: {
+      analytics: analyticsCache.getStats(),
+      predictions: predictionCache.getStats()
+    }
   };
 });
 
@@ -1117,20 +1293,25 @@ fastify.get('/analytics/cache-stats', async (request, reply) => {
 
 fastify.post('/cache/clear', async (request, reply) => {
   analyticsCache.clear();
+  predictionCache.clear();
   return {
     success: true,
-    message: 'Analytics cache cleared successfully'
+    message: 'Analytics and prediction caches cleared successfully'
   };
 });
 
 fastify.post('/cache/refresh', async (request, reply) => {
   try {
     analyticsCache.clear();
+    predictionCache.clear();
     await preWarmCache();
     return {
       success: true,
-      message: 'Cache refreshed successfully',
-      stats: analyticsCache.getStats()
+      message: 'Caches refreshed successfully',
+      stats: {
+        analytics: analyticsCache.getStats(),
+        predictions: predictionCache.getStats()
+      }
     };
   } catch (error) {
     fastify.log.error('Error refreshing cache:', error);
@@ -1179,13 +1360,17 @@ async function preWarmCache() {
   }
 
   console.log(`✅ Cache pre-warming completed: ${successCount}/${total} tasks successful`);
-  console.log(`📊 Cache stats:`, analyticsCache.getStats());
+  console.log(`📊 Cache stats:`, {
+    analytics: analyticsCache.getStats(),
+    predictions: predictionCache.getStats()
+  });
 }
 
 const start = async () => {
   try {
-    // Initialize cache and check for data file changes
+    // Initialize caches and check for file changes
     analyticsCache.initializeHashes();
+    predictionCache.initializeHashes();
 
     const port = process.env.PORT || 3000;
     const host = process.env.HOST || '0.0.0.0';

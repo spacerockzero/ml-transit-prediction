@@ -29,6 +29,7 @@ interface ActionData {
     shipping_cost_usd: number;
   }>;
   sortBy?: string;
+  requestTime?: number;
   error?: string;
 }
 
@@ -50,6 +51,8 @@ export const action: ActionFunction = async ({ request }) => {
   const carriers = ["USPS", "UPS", "FedEx"];
 
   try {
+    const startTime = performance.now();
+
     const predictions = await Promise.all(
       carriers.map(async (carrier) => {
         const data = { ...baseData, carrier };
@@ -74,6 +77,9 @@ export const action: ActionFunction = async ({ request }) => {
       })
     );
 
+    const endTime = performance.now();
+    const requestTime = Math.round(endTime - startTime);
+
     // Sort predictions based on user selection
     const sortedPredictions = predictions.sort((a, b) => {
       if (sortBy === "cost") {
@@ -86,7 +92,8 @@ export const action: ActionFunction = async ({ request }) => {
     return {
       success: true,
       predictions: sortedPredictions,
-      sortBy
+      sortBy,
+      requestTime
     };
   } catch (error) {
     console.error("Prediction error:", error);
@@ -480,9 +487,16 @@ export default function TransitPrediction() {
 
               {/* Disclaimer - always show when we have prediction data */}
               {(actionData?.success && actionData.predictions) && (
-                <div className="text-xs text-gray-500 mt-4">
-                  Predictions are based on historical shipping data and machine learning models.
-                  Actual results may vary.
+                <div className="text-xs text-gray-500 mt-4 space-y-1">
+                  {actionData.requestTime && (
+                    <div className="text-center">
+                      Request completed in {actionData.requestTime}ms
+                    </div>
+                  )}
+                  <div>
+                    Predictions are based on historical shipping data and machine learning models.
+                    Actual results may vary.
+                  </div>
                 </div>
               )}
             </CardContent>
